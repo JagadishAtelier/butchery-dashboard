@@ -14,8 +14,34 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { getAllProducts, deleteProduct } from "../../api/productApi";
+
+// 🔹 Small component to handle auto-rotating product images
+function ProductImageSlider({ images, title }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!images || images.length === 0) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(interval);
+  }, [images]);
+
+  if (!images || images.length === 0) return null;
+
+  return (
+    <img
+      src={images[currentIndex]}
+      alt="thumb"
+      title={title}
+      className="w-10 h-10 rounded-full object-cover border"
+    />
+  );
+}
 
 export default function ProductList() {
   const navigate = useNavigate();
@@ -29,19 +55,16 @@ export default function ProductList() {
   useEffect(() => {
     const fetchProductsWithCategories = async () => {
       try {
-        // 1️⃣ Get all products
         const productResponse = await getAllProducts();
         const products = productResponse.data;
-  
-        // 2️⃣ Fetch category details for each product
+
         const productsWithCategory = await Promise.all(
           products.map(async (product) => {
-            const categoryData = await getCategoryById(product.category); // product.category has the category ID
-            return { ...product, categoryData }; // merge category data into product
+            const categoryData = await getCategoryById(product.category);
+            return { ...product, categoryData };
           })
         );
-  
-        // 3️⃣ Set products with category info
+
         setProducts(productsWithCategory);
       } catch (error) {
         console.error("Failed to fetch products or categories", error);
@@ -50,21 +73,16 @@ export default function ProductList() {
         setLoading(false);
       }
     };
-  
+
     fetchProductsWithCategories();
   }, []);
-  
-
-  console.log(products);
 
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
-  
+
     return products.filter(
       (p) =>
-        (p.name + p.category + p._id) // <-- use _id here
-          .toLowerCase()
-          .includes(search.toLowerCase()) &&
+        (p.name + p.category + p._id).toLowerCase().includes(search.toLowerCase()) &&
         (statusFilter ? p.status === statusFilter : true) &&
         (categoryFilter ? p.category === categoryFilter : true)
     );
@@ -105,16 +123,16 @@ export default function ProductList() {
     });
     doc.save("products.pdf");
   };
+
   const handleEditClick = (product) => {
-    console.log(product.id);
     navigate(`/editproduct/${product._id}`);
   };
+
   const handleDeleteClick = (product) => {
-    // Optimistically remove from UI
-    setProducts((prev) => prev.filter((p) => p._id !== product._id)); // <-- use _id
-  
+    setProducts((prev) => prev.filter((p) => p._id !== product._id));
+
     let undoCalled = false;
-  
+
     const undo = () => {
       undoCalled = true;
       setProducts((prev) => [product, ...prev]);
@@ -143,7 +161,6 @@ export default function ProductList() {
       { duration: 5000 }
     );
 
-    // After timeout, if not undone, call actual delete API
     setTimeout(() => {
       if (!undoCalled) {
         deleteProduct(product._id)
@@ -152,17 +169,11 @@ export default function ProductList() {
           })
           .catch(() => {
             toast.error(`Failed to delete ${product.name} from server.`);
-            // Optional: re-add product on error
             setProducts((prev) => [product, ...prev]);
           });
       }
-    }, 5000); // same as toast duration
+    }, 5000);
   };
-
-  // const handleSaveProduct = (updatedProduct) => {
-  //   console.log("Updated Product:", updatedProduct);
-  //   // Update product list logic here
-  // };
 
   if (loading)
     return (
@@ -215,7 +226,7 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* Mobile Filter Toggle Button */}
+      {/* Mobile Filter Toggle */}
       <div className="sm:hidden sticky top-0 z-10 flex justify-end mb-3">
         <button
           onClick={() => setShowMobileFilters((prev) => !prev)}
@@ -225,7 +236,7 @@ export default function ProductList() {
         </button>
       </div>
 
-      {/* Filters - Visible on sm+ or if toggled on mobile */}
+      {/* Filters */}
       {(showMobileFilters || window.innerWidth >= 640) && (
         <div className="sticky top-[26px] sm:top-[-12px] z-10 bg-white py-3 flex flex-wrap gap-3 border-y mb-4 sm:flex">
           <select
@@ -288,36 +299,26 @@ export default function ProductList() {
                   <td className="p-3">
                     <input type="checkbox" />
                   </td>
-                  <td className="p-3 flex flex-wrap gap-1">
-                    {product.images.map((img, i) => (
-                      <img
-                        key={i}
-                        src={img}
-                        alt="thumb"
-                        title={product.name}
-                        className="w-10 h-10 rounded-full object-cover border"
-                      />
-                    ))}
-                  </td>
-                  <td className="p-3 whitespace-nowrap">
-  {product.name.split(" ").slice(0, 5).join(" ")}
-  {product.name.split(" ").length > 10 && "..."}
-</td>
 
+                  {/* 🔹 Use auto-rotating image component */}
+                  <td className="p-3">
+                    <ProductImageSlider images={product.images} title={product.name} />
+                  </td>
+
+                  <td className="p-3 whitespace-nowrap">
+                    {product.name.split(" ").slice(0, 5).join(" ")}
+                    {product.name.split(" ").length > 10 && "..."}
+                  </td>
                   <td className="p-3 whitespace-nowrap">{product.categoryData.name}</td>
                   <td className="p-3 whitespace-nowrap">{product.productId}</td>
                   <td className="p-3 whitespace-nowrap">
-  {product.weightOptions.find((w) => w.weight === 1000)?.price 
-    || product.weightOptions[0]?.price 
-    || "N/A"}
-</td>
-
-
+                    {product.weightOptions.find((w) => w.weight === 1000)?.price ||
+                      product.weightOptions[0]?.price ||
+                      "N/A"}
+                  </td>
                   <td
                     className={`p-3 font-medium whitespace-nowrap ${
-                      product.status === "Active"
-                        ? "text-green-600"
-                        : "text-red-600"
+                      product.status === "Active" ? "text-green-600" : "text-red-600"
                     }`}
                   >
                     {product.status}
@@ -345,7 +346,6 @@ export default function ProductList() {
         </table>
       </div>
 
-      {/* Footer */}
       <div className="mt-4 text-gray-500 text-sm">
         Showing {filteredProducts.length} of {products.length} products
       </div>
