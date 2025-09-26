@@ -1,76 +1,53 @@
+// src/components/molecules/TopSellingProducts.jsx
 import { ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-const topProducts = [
-  {
-    id: 1,
-    title: 'Country Chicken',
-    price: '₹ 450',
-    image: 'https://res.cloudinary.com/dxm28ujz3/image/upload/v1758278971/products/mlf3xyjts9lm8gcsxtfu.jpg',
-  },
-  {
-    id: 2,
-    title: 'Premium quality goat meat cut',
-    price: '₹ 850',
-    image: 'https://res.cloudinary.com/dxm28ujz3/image/upload/v1758280497/products/bgybeptyx0qlsdvlnzgq.jpg',
-  },
-  // {
-  //   id: 3,
-  //   title: 'Fullcap',
-  //   price: '₹ 299',
-  //   image: '/fullcap.jpg',
-  //   sales: 7657
-  // },
-  // {
-  //   id: 4,
-  //   title: 'Adidas pants',
-  //   price: '₹ 899',
-  //   image: '/adidas-pants.jpg',
-  //   sales: 3000
-  // },
-];
+export default function TopSellingProducts({ products = [] }) {
+  const navigate = useNavigate();
 
-export default function TopSellingProducts() {
   return (
-    <div className="bg-white p-4 sm:p-6 w-full max-w-xl rounded-lg shadow">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-        <h2 className="text-lg sm:text-sm font-semibold text-[#2E2E62]">Top Selling Products</h2>
-        <a href="topsellers" className="text-sm text-[#5840BB] flex items-center gap-1">
+    <div className="bg-white p-4 sm:p-6 w-full max-w-xl rounded-lg shadow mb-4">
+      <div className="flex justify-between items-center mb-4 gap-2">
+        <h2 className="text-lg font-semibold text-[#2E2E62]">Top Selling Products</h2>
+        <button
+          onClick={() => navigate("/topsellers")}
+          className="text-sm text-[#5840BB] flex items-center gap-1"
+        >
           See all <ChevronRight size={16} />
-        </a>
+        </button>
       </div>
-      {topProducts.length === 0 ? (
+
+      {products.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-4">
           No top selling products available.
         </p>
-      ) :(
-
-      <ul className="space-y-3">
-        {topProducts.map((product, index) => (
-          <li
-            key={product.id}
-            className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 border border-gray-100 hover:bg-gray-50 rounded-lg transition"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-[#2E2E62] font-semibold">{index + 1}</span>
-              <img
-                src={product.image}
-                alt={product.title}
-                className="w-12 h-12 object-cover rounded-tl-[15px] rounded-tr-[5px] rounded-br-[15px] rounded-bl-[5px] shadow"
-              />
-              <div className="min-w-0">
-                <p className="text-sm text-[#2E2E62] font-medium truncate">{product.title}</p>
-                <p className="text-base font-semibold text-[#2E2E62]">{product.price}</p>
+      ) : (
+        <ul className="space-y-3">
+          {products.map((p, index) => (
+            <li
+              key={p.productId || p._id || index}
+              className="flex items-center justify-between gap-3 p-3 border border-gray-100 hover:bg-gray-50 rounded-lg transition"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-sm text-[#2E2E62] font-semibold">{index + 1}</span>
+                <img
+                  src={p.image || "/placeholder.png"}
+                  alt={p.name}
+                  className="w-12 h-12 object-cover rounded shadow"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm text-[#2E2E62] font-medium truncate">{p.name}</p>
+                  <p className="text-xs text-gray-500">{p.productKey || ""}</p>
+                </div>
               </div>
-            </div>
-            <div className="hidden sm:block text-left sm:text-right">
-              <p className="text-xs sm:text-sm text-[#2E2E62]">Sales/Month</p>
-              <p className="text-sm sm:text-base font-semibold text-orange-500">
-                {product.sales >= 1000 ? `${(product.sales / 1000).toFixed(1)}K` : product.sales}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
+
+              <div className="text-right">
+                <p className="text-sm font-semibold text-[#2E2E62]">₹ {p.revenue ?? 0}</p>
+                <p className="text-xs text-gray-500">{p.quantitySold ?? 0} sold</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

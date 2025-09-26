@@ -1,42 +1,75 @@
-import StatCard from '../components/molecules/StatCard';
-import { PiggyBank, ReceiptText } from 'lucide-react';
-import TopSellingProducts from '../components/molecules/TopSellingProducts';
-import SalesStatistics from '../components/molecules/SalesStatistics';
-import UniqueVisitorsChart from '../components/molecules/UniqueVisitorsChart';
-import NewOrdersList from '../components/molecules/NewOrdersList';
+// src/pages/DashboardPage.jsx
+import { useEffect, useState } from "react";
+import StatCard from "../components/molecules/StatCard";
+import TopSellingProducts from "../components/molecules/TopSellingProducts";
+import UniqueVisitorsChart from "../components/molecules/UniqueVisitorsChart";
+import NewOrdersList from "../components/molecules/NewOrdersList";
+import dashboardApi from "../api/dashboardApi";
+import { PiggyBank, ReceiptText } from "lucide-react";
 
 export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [payload, setPayload] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        const res = await dashboardApi.getDashboard();
+        if (mounted) setPayload(res.data);
+      } catch (err) {
+        console.error("Dashboard fetch failed:", err);
+        if (mounted) setError(err.message || "Failed to load");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return <div className="p-6">Loading dashboard…</div>;
+  }
+  if (error) {
+    return <div className="p-6 text-red-600">Error: {error}</div>;
+  }
+
+  const stats = payload.stats || {};
+  const topProducts = payload.topSellingProducts || [];
+  const revenueByDay = (payload.graphs && payload.graphs.revenueByDay) || [];
+  const visitorsByDay = stats.visitors?.byDay || [];
+
   return (
     <div className="flex flex-col md:flex-row flex-wrap">
-      
-      {/* Left Section */}
       <div className="w-full md:w-3/5 flex flex-col gap-2 p-4">
         <div className="flex flex-col sm:flex-row gap-2">
           <StatCard
             label="Orders"
-            value="2,43,789"
-            diff="20"
+            value={stats.totalOrders ?? "0"}
+            diff={null}
             icon={<ReceiptText />}
             color="bg-[#C7F2FF] w-full sm:w-2/5"
           />
           <StatCard
             label="Sales"
-            value="₹120,890.00"
-            diff="440.00"
+            value={`₹ ${stats.totalRevenue ?? 0}`}
+            diff={null}
             icon={<PiggyBank />}
             color="bg-[#FFE5EE] w-full sm:w-3/5"
           />
         </div>
+
         <div className="w-full">
-          {/* <SalesStatistics /> */}
-          <NewOrdersList/>
+          <NewOrdersList />
         </div>
       </div>
 
-      {/* Right Section */}
       <div className="w-full md:w-2/5 p-4 pt-0 md:pt-4">
-        <TopSellingProducts />
-        <UniqueVisitorsChart />
+        <TopSellingProducts products={topProducts} />
+        <UniqueVisitorsChart revenueData={revenueByDay} visitorsByDay={visitorsByDay} />
       </div>
     </div>
   );
