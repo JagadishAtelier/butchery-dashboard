@@ -34,7 +34,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col md:flex-row lg:flex-row flex-wrap animate-pulse p-6 gap-4">
+      <div className="flex flex-col md:flex-row  flex-wrap animate-pulse p-6 gap-4">
         {/* Left section */}
         <div className="w-full md:w-3/5 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4">

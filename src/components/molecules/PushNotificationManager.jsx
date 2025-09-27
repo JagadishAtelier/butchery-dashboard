@@ -1,13 +1,12 @@
-import { useEffect, useState, useCallback } from "react"; // Added useCallback
-import { Send, Bell, Loader2, RotateCcw, RefreshCcw } from "lucide-react"; // Added RefreshCcw for history
-
-// We'll use a small Toast-like notification for better user feedback
-// This would typically be a global component, but for this example,
-// we'll keep it simple or assume a global toast system exists.
+import { useEffect, useState, useCallback } from "react";
+import { Send, Bell, Loader2, RotateCcw, RefreshCcw, User, BellIcon } from "lucide-react";
+import StatCard from "./StatCard";
+// Simple Toast Notification Component
 const NotificationToast = ({ message, type, onClose }) => {
   if (!message) return null;
 
-  const baseClasses = "fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-2 text-white z-50";
+  const baseClasses =
+    "fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-2 text-white z-50";
   let typeClasses = "";
 
   switch (type) {
@@ -28,51 +27,58 @@ const NotificationToast = ({ message, type, onClose }) => {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000); // Auto-dismiss after 5 seconds
+    const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
   }, [message, onClose]);
 
   return (
     <div className={`${baseClasses} ${typeClasses}`}>
       <span>{message}</span>
-      <button onClick={onClose} className="ml-2 text-white opacity-75 hover:opacity-100">&times;</button>
+      <button
+        onClick={onClose}
+        className="ml-2 text-white opacity-75 hover:opacity-100"
+      >
+        &times;
+      </button>
     </div>
   );
 };
-
 
 export default function PushNotificationManager() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false); // New state for history loading
-  const [notificationToast, setNotificationToast] = useState({ message: "", type: "" });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [notificationToast, setNotificationToast] = useState({
+    message: "",
+    type: "",
+  });
   const [history, setHistory] = useState([]);
+  const [formResponseMsg, setFormResponseMsg] = useState("");
+  const [stats, setStats] = useState({
+    totalSubscribers: 0,
+    visitedViaPush: 0,
+  });
+  const [scheduleSunday, setScheduleSunday] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-  // Debounced response message state for transient messages like form validation
-  const [formResponseMsg, setFormResponseMsg] = useState("");
-  useEffect(() => {
-    if (formResponseMsg) {
-      const timer = setTimeout(() => setFormResponseMsg(""), 3000); // Clear after 3 seconds
-      return () => clearTimeout(timer);
+  // Fetch Stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/notifications/stats`);
+      if (!res.ok) throw new Error("Failed to fetch stats");
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load stats", "error");
     }
-  }, [formResponseMsg]);
+  }, [API_URL]);
 
-
-  const showToast = (message, type) => {
-    setNotificationToast({ message, type });
-  };
-
-  const clearToast = () => {
-    setNotificationToast({ message: "", type: "" });
-  };
-
+  // Fetch History
   const fetchHistory = useCallback(async () => {
-    setHistoryLoading(true); // Set history loading state
+    setHistoryLoading(true);
     try {
       const res = await fetch(`${API_URL}/notifications/history`);
       if (!res.ok) throw new Error("Failed to fetch history");
@@ -82,30 +88,32 @@ export default function PushNotificationManager() {
       console.error("Failed to fetch history", err);
       showToast("Failed to load history.", "error");
     } finally {
-      setHistoryLoading(false); // Clear history loading state
+      setHistoryLoading(false);
     }
-  }, [API_URL]); // Dependency on API_URL
+  }, [API_URL]);
 
-  // Fetch history on mount
   useEffect(() => {
+    fetchStats();
     fetchHistory();
-  }, [fetchHistory]); // Dependency on fetchHistory useCallback
+  }, [fetchStats, fetchHistory]);
+
+  const showToast = (message, type) => setNotificationToast({ message, type });
+  const clearToast = () => setNotificationToast({ message: "", type: "" });
 
   const handleSendNotification = async () => {
     if (!title.trim() || !body.trim()) {
-      setFormResponseMsg("⚠️ Please fill out both title and message"); // Use form specific message
+      setFormResponseMsg("⚠️ Please fill out both title and message");
       return;
     }
 
     setLoading(true);
-    setFormResponseMsg(""); // Clear previous form messages
-    clearToast(); // Clear any existing toasts
+    clearToast();
 
     try {
       const res = await fetch(`${API_URL}/notifications/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({ title, body, scheduleSunday }),
       });
 
       const data = await res.json();
@@ -113,7 +121,9 @@ export default function PushNotificationManager() {
         showToast("Notification sent successfully!", "success");
         setTitle("");
         setBody("");
-        fetchHistory(); // Refresh history
+        setScheduleSunday(false);
+        fetchHistory();
+        fetchStats();
       } else {
         showToast(`Failed to send: ${data.error || "Unknown error"}`, "error");
       }
@@ -126,10 +136,9 @@ export default function PushNotificationManager() {
   };
 
   const handleResend = async (item) => {
-    // Show a confirmation modal/dialog for better UX than browser confirm
     if (!confirm(`Are you sure you want to resend "${item.title}"?`)) return;
 
-    setLoading(true); // Indicate overall loading for the component
+    setLoading(true);
     clearToast();
 
     try {
@@ -139,9 +148,13 @@ export default function PushNotificationManager() {
       const data = await res.json();
       if (res.ok) {
         showToast(`Notification "${item.title}" resent!`, "success");
-        fetchHistory(); // Refresh history
+        fetchHistory();
+        fetchStats();
       } else {
-        showToast(`Failed to resend: ${data.error || "Unknown error"}`, "error");
+        showToast(
+          `Failed to resend: ${data.error || "Unknown error"}`,
+          "error"
+        );
       }
     } catch (err) {
       console.error(err);
@@ -152,88 +165,124 @@ export default function PushNotificationManager() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
-      <div className="bg-white mx-auto rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-2xl border border-gray-100">
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-          <Bell className="w-7 h-7 text-indigo-500" /> {/* Changed color, slightly larger */}
-          <h2 className="text-xl font-bold text-gray-800">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      {/* Page Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Bell className="w-7 h-7 text-indigo-500" />
+          <h1 className="text-2xl font-bold text-gray-800">
             Push Notification Manager
-          </h2>
+          </h1>
         </div>
+        <p className="text-gray-500 text-sm">
+          Create and manage push notifications for your users.
+        </p>
+      </div>
 
-        {/* Create Form */}
-        <section className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-100"> {/* Added section styling */}
-          <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-            <Send className="w-5 h-5" /> Send New Notification
-          </h3>
-          <div className="mb-4">
-            <label htmlFor="notification-title" className="block text-sm font-medium text-gray-700 mb-1">
-              Title
-            </label>
-            <input
-              id="notification-title"
-              type="text"
-              placeholder="e.g., New Product Launch! or Limited Time Offer!"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-              aria-label="Notification Title"
-            />
-          </div>
+      {/* Stats */}
+      {/* Stats */}
+      <div className="flex gap-6 mb-6">
+        <StatCard
+          label="Total Subscribers"
+          value={stats.totalSubscribers}
+          icon={<User />}
+          color="bg-indigo-100"
+        />
+        <StatCard
+          label="Visited via Push"
+          value={stats.visitedViaPush}
+          icon={<BellIcon />}
+          color="bg-green-100"
+        />
+      </div>
 
-          <div className="mb-6">
-            <label htmlFor="notification-message" className="block text-sm font-medium text-gray-700 mb-1">
-              Message
-            </label>
-            <textarea
-              id="notification-message"
-              placeholder="e.g., Explore our latest collection and grab yours now! Don't miss out!"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={4} // Set a fixed number of rows
-              className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y" // Allow vertical resize
-              aria-label="Notification Message"
-            />
-          </div>
+      <div className="space-y-10">
+        {/* Send Notification Section */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
+            <Send className="w-5 h-5 text-indigo-500" /> Send New Notification
+          </h2>
 
-          <button
-            onClick={handleSendNotification}
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed text-base"
-            aria-label={loading ? "Sending notification" : "Send notification"}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Sending...
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" /> Send Notification
-              </>
+          <div className="grid gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Title
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., New Product Launch! or Limited Time Offer!"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Message
+              </label>
+              <textarea
+                placeholder="e.g., Explore our latest collection and grab yours now!"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={4}
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-y"
+              />
+            </div>
+
+            {/* Weekly Schedule */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={scheduleSunday}
+                onChange={(e) => setScheduleSunday(e.target.checked)}
+                className="rounded border-gray-300"
+                id="scheduleSunday"
+              />
+              <label htmlFor="scheduleSunday" className="text-sm text-gray-700">
+                Send every Sunday at 10:00 AM
+              </label>
+            </div>
+
+            <button
+              onClick={handleSendNotification}
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" /> Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" /> Send Notification
+                </>
+              )}
+            </button>
+
+            {formResponseMsg && (
+              <p className="text-sm text-center text-red-600 mt-2 font-medium">
+                {formResponseMsg}
+              </p>
             )}
-          </button>
-
-          {formResponseMsg && (
-            <p className="text-sm text-center text-red-600 mt-3 font-medium">
-              {formResponseMsg}
-            </p>
-          )}
+          </div>
         </section>
 
-        {/* History */}
-        <section>
+        {/* Notification History */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               📜 Notification History
-            </h3>
+            </h2>
             <button
               onClick={fetchHistory}
               disabled={historyLoading}
               className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Refresh history"
             >
-              <RefreshCcw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
-              {historyLoading ? 'Refreshing...' : 'Refresh'}
+              <RefreshCcw
+                className={`w-4 h-4 ${historyLoading ? "animate-spin" : ""}`}
+              />
+              {historyLoading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
 
@@ -264,17 +313,23 @@ export default function PushNotificationManager() {
                       key={item._id}
                       className="hover:bg-gray-50 transition duration-150 ease-in-out"
                     >
-                      <td className="px-4 py-3 font-medium text-gray-800">{item.title}</td>
-                      <td className="px-4 py-3 text-gray-600 line-clamp-2" title={item.body}>{item.body}</td> {/* line-clamp for long messages */}
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        {item.title}
+                      </td>
+                      <td
+                        className="px-4 py-3 text-gray-600 line-clamp-2"
+                        title={item.body}
+                      >
+                        {item.body}
+                      </td>
                       <td className="px-4 py-3 text-center text-gray-500">
                         {new Date(item.sentAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
                           onClick={() => handleResend(item)}
-                          className="text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1 mx-auto px-2 py-1 rounded-md hover:bg-blue-50 transition"
-                          disabled={loading} // Disable resend button if any action is loading
-                          aria-label={`Resend notification: ${item.title}`}
+                          className="text-indigo-600 hover:text-indigo-800 flex items-center justify-center gap-1 mx-auto px-2 py-1 rounded-md hover:bg-indigo-50 transition"
+                          disabled={loading}
                         >
                           <RotateCcw className="w-4 h-4" /> Resend
                         </button>
