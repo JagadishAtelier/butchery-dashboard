@@ -38,16 +38,16 @@ export default function DashboardPage() {
         {/* Left section */}
         <div className="w-full md:w-3/5 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="bg-gray-200 rounded-2xl h-30 w-full sm:w-2/5"></div>
-            <div className="bg-gray-200 rounded-2xl h-30 w-full sm:w-3/5"></div>
+            <div className="bg-gray-200 rounded-2xl h-36 w-full sm:w-2/5"></div>
+            <div className="bg-gray-200 rounded-2xl h-36 w-full sm:w-3/5"></div>
           </div>
           <div className="bg-gray-200 rounded-2xl h-64 w-full"></div>
         </div>
 
         {/* Right section */}
         <div className="w-full md:w-2/5 flex flex-col gap-4">
-          <div className="bg-gray-200 rounded-2xl h-48 w-full"></div>
-          <div className="bg-gray-200 rounded-2xl h-64 w-full"></div>
+          <div className="bg-gray-200 rounded-2xl h-[50%] w-full"></div>
+          <div className="bg-gray-200 rounded-2xl h-[50%] w-full"></div>
         </div>
       </div>
     );
