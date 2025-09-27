@@ -34,12 +34,12 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col md:flex-row  flex-wrap animate-pulse p-6 gap-4">
+      <div className="flex flex-col md:flex-row flex-wrap lg:flex-nowrap animate-pulse p-6 gap-4">
         {/* Left section */}
         <div className="w-full md:w-3/5 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="bg-gray-200 rounded-2xl h-24 w-full sm:w-2/5"></div>
-            <div className="bg-gray-200 rounded-2xl h-24 w-full sm:w-3/5"></div>
+            <div className="bg-gray-200 rounded-2xl h-30 w-full sm:w-2/5"></div>
+            <div className="bg-gray-200 rounded-2xl h-30 w-full sm:w-3/5"></div>
           </div>
           <div className="bg-gray-200 rounded-2xl h-64 w-full"></div>
         </div>
