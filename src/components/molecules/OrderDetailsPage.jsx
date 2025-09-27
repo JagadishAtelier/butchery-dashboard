@@ -333,7 +333,7 @@ export default function OrderDetailsPage() {
 
         {/* Right column */}
         <div className="space-y-6">
-          <div className="sticky top-6">
+          <div className="">
             <div className="bg-white shadow-lg rounded-xl p-6 border-t-4 border-indigo-500">
               <h2 className="font-semibold text-lg text-gray-700 mb-4">Order Summary</h2>
               <div className="space-y-2">

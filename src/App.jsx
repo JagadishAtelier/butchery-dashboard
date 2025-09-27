@@ -17,6 +17,8 @@ import EditProduct from './components/AddProducts/EditProduct';
 import ChatBot from './components/ChatBot';
 import ForgotPassword from './components/ForgotPassword';
 import OrderDetailsPage from './components/molecules/OrderDetailsPage';
+import PushNotificationForm from './components/molecules/PushNotificationForm';
+import PushNotificationManager from './components/molecules/PushNotificationManager';
 
 export default function App() {
   return (
@@ -27,7 +29,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Protected Routes */}
-        <Route element={<PrivateRoute />}>
+        <Route element={<PrivateRoute />}>  
           <Route path="/" element={<DashboardLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="/orders" element={<OrderPage />} />
@@ -36,7 +38,7 @@ export default function App() {
             <Route path="/Addproducts" element={<ProductFormModal />} />
             <Route path="/editproduct/:productId" element={<EditProduct />} />
             <Route path="/topsellers" element={<TopSellersList />} />
-            {/* <Route path="/marketing" element={<MarketingPage />} /> */} 
+            <Route path="/marketing" element={ <PushNotificationManager />} /> 
             <Route path="/payments" element={<PaymentDashboard />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/categories" element={<CategoryPage />} />

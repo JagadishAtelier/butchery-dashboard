@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import image from '../../assets/ik-white.svg'
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import image from "../../assets/ik-white.svg";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -12,7 +12,7 @@ import {
   IndianRupee,
   ChevronDown,
   ChevronUp,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function Sidebar({ setSidebarOpen }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -26,27 +26,35 @@ export default function Sidebar({ setSidebarOpen }) {
   };
 
   const isProductActive =
-    location.pathname.startsWith('/products') && !location.pathname.includes('/marketing');
+    location.pathname.startsWith("/products") &&
+    !location.pathname.includes("/marketing");
 
   return (
     <aside
       className={`${
-        collapsed ? 'sm:w-20' : 'sm:w-56'
+        collapsed ? "sm:w-20" : "sm:w-56"
       } w-80 bg-black text-white h-full p-6 pe-0 transition-[width] duration-300 ease-in-out relative select-none`}
     >
       {/* Logo */}
-      <div className={`mb-10 px-1 flex items-center gap-2 ${collapsed ? 'justify-center' : 'px-5'}`}>
-      <a href='/' className="text-2xl font-bold transition-all duration-300 ease-in-out select-text">
-    <img 
-      src={image} 
-      className={`${collapsed ? 'w-10 h-10' : 'w-24 h-auto'}`} 
-      alt="Logo"
-    />
-  </a>
+      <div
+        className={`mb-10 px-1 flex items-center gap-2 ${
+          collapsed ? "justify-center" : "px-5"
+        }`}
+      >
+        <a
+          href="/"
+          className="text-2xl font-bold transition-all duration-300 ease-in-out select-text"
+        >
+          <img
+            src={image}
+            className={`${collapsed ? "w-10 h-10" : "w-24 h-auto"}`}
+            alt="Logo"
+          />
+        </a>
         {/* Toggle Button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="absolute bottom-14 -right-3 transition-all duration-300 ease-in-out hidden sm:block bg-red-800 text-white p-1 rounded-full shadow-md"
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -61,77 +69,88 @@ export default function Sidebar({ setSidebarOpen }) {
           onClick={handleNavClick}
           className={({ isActive }) =>
             `flex items-center gap-2 ${
-              collapsed ? 'justify-center' : 'ps-3 pe-5'
+              collapsed ? "justify-center" : "ps-3 pe-5"
             } py-3 rounded-[13px] rounded-tr-[0px] rounded-br-[0px] transition relative ${
-              isActive ? 'text-black font-medium active-tab active-tab-bg' : 'hover:bg-white hover:text-black'
+              isActive
+                ? "text-black font-medium active-tab active-tab-bg"
+                : "hover:bg-white hover:text-black"
             }`
           }
-          title={collapsed ? 'Dashboard' : undefined}
+          title={collapsed ? "Dashboard" : undefined}
         >
           <LayoutDashboard />
           {!collapsed && <span>Dashboard</span>}
         </NavLink>
 
         {/* Products with submenu */}
-<div>
-  <button
-    onClick={() => setProductOpen(!productOpen)}
-    className={`w-full flex items-center gap-2 ${
-      collapsed ? 'justify-center' : 'ps-3 pe-5'
-    } py-3 rounded-[13px] rounded-tr-[0px] rounded-br-[0px] transition ${
-      (isProductActive || productOpen) && !collapsed
-        ? 'text-black font-medium bg-white'
-        : 'hover:bg-white hover:text-black'
-    }`}
-  >
-    <BarChart2 />
-    {!collapsed && (
-      <>
-        <span className="flex-1 text-left">Products</span>
-        {productOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </>
-    )}
-  </button>
+        <div>
+          <button
+            onClick={() => setProductOpen(!productOpen)}
+            className={`w-full flex items-center gap-2 ${
+              collapsed ? "justify-center" : "ps-3 pe-5"
+            } py-3 rounded-[13px] rounded-tr-[0px] rounded-br-[0px] transition ${
+              (isProductActive || productOpen) && !collapsed
+                ? "text-black font-medium bg-white"
+                : "hover:bg-white hover:text-black"
+            }`}
+          >
+            <BarChart2 />
+            {!collapsed && (
+              <>
+                <span className="flex-1 text-left">Products</span>
+                {productOpen ? (
+                  <ChevronUp size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </>
+            )}
+          </button>
 
-  {!collapsed && productOpen && (
-    <div className="ml-8 mt-1 space-y-1">
-      <NavLink
-        to="/products"
-        onClick={handleNavClick}
-        className={({ isActive }) =>
-          `block text-sm rounded rounded-r-none px-2 py-2 transition ${
-            isActive ? 'text-black font-medium bg-white active-tab active-tab-bg' : 'hover:bg-white hover:text-black'
-          }`
-        }
-      >
-        All Products
-      </NavLink>
-      <NavLink
-        to="/addproducts"
-        onClick={handleNavClick}
-        className={({ isActive }) =>
-          `block text-sm rounded rounded-r-none px-2 py-2 transition ${
-            isActive ? 'text-black font-medium bg-white active-tab active-tab-bg' : 'hover:bg-white hover:text-black'
-          }`
-        }
-      >
-        Add Product
-      </NavLink>
-      <NavLink
-        to="/categories"
-        onClick={handleNavClick}
-        className={({ isActive }) =>
-          `block text-sm rounded rounded-r-none px-2 py-2 transition ${
-            isActive ? 'text-black font-medium bg-white active-tab' : 'hover:bg-white hover:text-black'
-          }`
-        }
-      >
-        Categories
-      </NavLink>
-    </div>
-  )}
-</div>
-
+          {!collapsed && productOpen && (
+            <div className="ml-8 mt-1 space-y-1">
+              <NavLink
+                to="/products"
+                onClick={handleNavClick}
+                className={({ isActive }) =>
+                  `block text-sm rounded rounded-r-none px-2 py-2 transition ${
+                    isActive
+                      ? "text-black font-medium bg-white active-tab active-tab-bg"
+                      : "hover:bg-white hover:text-black"
+                  }`
+                }
+              >
+                All Products
+              </NavLink>
+              <NavLink
+                to="/addproducts"
+                onClick={handleNavClick}
+                className={({ isActive }) =>
+                  `block text-sm rounded rounded-r-none px-2 py-2 transition ${
+                    isActive
+                      ? "text-black font-medium bg-white active-tab active-tab-bg"
+                      : "hover:bg-white hover:text-black"
+                  }`
+                }
+              >
+                Add Product
+              </NavLink>
+              <NavLink
+                to="/categories"
+                onClick={handleNavClick}
+                className={({ isActive }) =>
+                  `block text-sm rounded rounded-r-none px-2 py-2 transition ${
+                    isActive
+                      ? "text-black font-medium bg-white active-tab"
+                      : "hover:bg-white hover:text-black"
+                  }`
+                }
+              >
+                Categories
+              </NavLink>
+            </div>
+          )}
+        </div>
 
         {/* Orders */}
         <NavLink
@@ -139,12 +158,14 @@ export default function Sidebar({ setSidebarOpen }) {
           onClick={handleNavClick}
           className={({ isActive }) =>
             `flex items-center gap-2 ${
-              collapsed ? 'justify-center' : 'ps-3 pe-5'
+              collapsed ? "justify-center" : "ps-3 pe-5"
             } py-3 rounded-[13px] rounded-tr-[0px] rounded-br-[0px] transition relative ${
-              isActive ? 'text-black font-medium active-tab active-tab-bg' : 'hover:bg-white hover:text-black'
+              isActive
+                ? "text-black font-medium active-tab active-tab-bg"
+                : "hover:bg-white hover:text-black"
             }`
           }
-          title={collapsed ? 'Orders' : undefined}
+          title={collapsed ? "Orders" : undefined}
         >
           <ShoppingBag />
           {!collapsed && <span>Orders</span>}
@@ -156,19 +177,21 @@ export default function Sidebar({ setSidebarOpen }) {
           onClick={handleNavClick}
           className={({ isActive }) =>
             `flex items-center gap-2 ${
-              collapsed ? 'justify-center' : 'ps-3 pe-5'
+              collapsed ? "justify-center" : "ps-3 pe-5"
             } py-3 rounded-[13px] rounded-tr-[0px] rounded-r-[0px] transition relative ${
-              isActive ? 'text-black font-medium active-tab active-tab-bg' : 'hover:bg-white hover:text-black'
+              isActive
+                ? "text-black font-medium active-tab active-tab-bg"
+                : "hover:bg-white hover:text-black"
             }`
           }
-          title={collapsed ? 'Payments' : undefined}
+          title={collapsed ? "Payments" : undefined}
         >
           <IndianRupee />
           {!collapsed && <span>Payments</span>}
         </NavLink>
 
         {/* Marketing */}
-        {/* <NavLink
+        <NavLink
           to="/marketing"
           onClick={handleNavClick}
           className={({ isActive }) =>
@@ -182,7 +205,7 @@ export default function Sidebar({ setSidebarOpen }) {
         >
           <Star />
           {!collapsed && <span>Marketing</span>}
-        </NavLink> */}
+        </NavLink>
       </nav>
     </aside>
   );
