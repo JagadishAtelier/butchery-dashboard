@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Send, Bell, Loader2, RotateCcw, RefreshCcw, User, BellIcon } from "lucide-react";
-import StatCard from "./StatCard";
+import StatCard from "../components/molecules/StatCard";
 // Simple Toast Notification Component
 const NotificationToast = ({ message, type, onClose }) => {
   if (!message) return null;
@@ -165,7 +165,7 @@ export default function PushNotificationManager() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#F3F6FF] p-4 sm:p-6 lg:p-8">
       {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">

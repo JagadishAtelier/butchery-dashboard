@@ -18,7 +18,7 @@ import ChatBot from './components/ChatBot';
 import ForgotPassword from './components/ForgotPassword';
 import OrderDetailsPage from './components/molecules/OrderDetailsPage';
 import PushNotificationForm from './components/molecules/PushNotificationForm';
-import PushNotificationManager from './components/molecules/PushNotificationManager';
+import PushNotificationManager from './pages/PushNotificationManager';
 
 export default function App() {
   return (
