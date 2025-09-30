@@ -66,7 +66,7 @@ export default function PushNotificationManager() {
   // Fetch Stats
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/notifications/stats`);
+      const res = await fetch(`${API_URL}/api/notifications/stats`);
       if (!res.ok) throw new Error("Failed to fetch stats");
       const data = await res.json();
       setStats(data);
@@ -80,7 +80,7 @@ export default function PushNotificationManager() {
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res = await fetch(`${API_URL}/notifications/history`);
+      const res = await fetch(`${API_URL}/api/notifications/history`);
       if (!res.ok) throw new Error("Failed to fetch history");
       const data = await res.json();
       setHistory(data || []);
