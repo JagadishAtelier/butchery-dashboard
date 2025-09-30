@@ -18,7 +18,7 @@ import { BellRing, PackageCheck, BarChart2, X, Truck, Check } from "lucide-react
 export default function NotificationModal({
   open,
   onClose,
-  socketUrl = "http://localhost:5000",
+  socketUrl = import.meta.env.VITE_API_BASE_URL || "https://butchery-backend.onrender.com",
   role = "admin",
   userId = null,
   showToast = true,
