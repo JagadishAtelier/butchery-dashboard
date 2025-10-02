@@ -36,6 +36,8 @@ const PaymentDashboard = () => {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedTxn, setSelectedTxn] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   const fetchPaymentsAndSettlements = async () => {
     try {
@@ -105,6 +107,11 @@ const PaymentDashboard = () => {
         t.notes?.contact?.toLowerCase().includes(query))
     );
   });
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleRefund = async (paymentId) => {
     try {
@@ -164,52 +171,51 @@ const PaymentDashboard = () => {
           <Filter size={16} />
         </button>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          label="Approx Settled Amount"
-          value={
-            loading
-              ? "Loading..."
-              : `₹${(monthlyCredited / 100).toLocaleString()}`
-          }
-          diff={
-            loading
-              ? null
-              : `${diff >= 0 ? "↑ " : "↓ "}₹${(
-                  Math.abs(diff) / 100
-                ).toLocaleString()}`
-          }
-          color="bg-[#E0F7FA]"
-          icon={<Landmark />}
-        />
-
-        <StatCard
-          label="Successful"
-          value={loading ? "Loading..." : currentStats.success}
-          diff={
-            loading
-              ? null
-              : `${
-                  currentStats.success - lastStats.success >= 0 ? "↑ " : "↓ "
-                } ${Math.abs(currentStats.success - lastStats.success)}`
-          }
-          color="bg-green-100"
-          icon={<CircleCheckBig />}
-        />
-
-        <StatCard
-          label="Failed"
-          value={loading ? "Loading..." : currentStats.failed}
-          diff={
-            loading
-              ? null
-              : `${
-                  currentStats.failed - lastStats.failed >= 0 ? "↑ " : "↓ "
-                } ${Math.abs(currentStats.failed - lastStats.failed)}`
-          }
-          color="bg-red-100"
-          icon={<CircleX />}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading ? (
+          <>
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white p-4 rounded-lg shadow animate-pulse space-y-3"
+              >
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-6 bg-gray-300 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <StatCard
+              label="Approx Settled Amount"
+              value={`₹${(monthlyCredited / 100).toLocaleString()}`}
+              diff={`${diff >= 0 ? "↑ " : "↓ "}₹${(
+                Math.abs(diff) / 100
+              ).toLocaleString()}`}
+              color="bg-[#E0F7FA]"
+              icon={<Landmark />}
+            />
+            <StatCard
+              label="Successful"
+              value={currentStats.success}
+              diff={`${
+                currentStats.success - lastStats.success >= 0 ? "↑ " : "↓ "
+              } ${Math.abs(currentStats.success - lastStats.success)}`}
+              color="bg-green-100"
+              icon={<CircleCheckBig />}
+            />
+            <StatCard
+              label="Failed"
+              value={currentStats.failed}
+              diff={`${
+                currentStats.failed - lastStats.failed >= 0 ? "↑ " : "↓ "
+              } ${Math.abs(currentStats.failed - lastStats.failed)}`}
+              color="bg-red-100"
+              icon={<CircleX />}
+            />
+          </>
+        )}
       </div>
 
       {/* Filters */}
@@ -260,7 +266,40 @@ const PaymentDashboard = () => {
       {/* Table */}
       <div className="bg-white p-4 rounded shadow overflow-x-auto">
         {loading ? (
-          <p className="text-center py-6">Loading...</p>
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <table className="min-w-full text-sm border">
+              <thead className="bg-gray-100">
+                <tr>
+                  {[
+                    "Payment ID",
+                    "Order ID",
+                    "Status",
+                    "Amount",
+                    "Method",
+                    "Net Credited",
+                    "Action",
+                    "More info",
+                  ].map((header) => (
+                    <th key={header} className="border px-4 py-2 text-left">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(6)].map((_, i) => (
+                  <tr key={i} className="border-b">
+                    {[...Array(8)].map((__, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-gray-200 rounded w-full"></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <table className="min-w-full text-sm border">
             <thead className="bg-gray-100 text-gray-700">
@@ -277,7 +316,7 @@ const PaymentDashboard = () => {
             </thead>
 
             <tbody>
-              {filteredData.map((txn) => {
+              {paginatedData.map((txn) => {
                 const netCredited =
                   (txn.amount -
                     (txn.fee || 0) -
@@ -341,6 +380,51 @@ const PaymentDashboard = () => {
           </table>
         )}
       </div>
+
+      {!loading && filteredData.length > 0 && (
+        <div className="flex justify-between items-center mt-4 text-sm">
+          <p className="text-gray-600">
+            Showing{" "}
+            <span className="font-medium">
+              {(currentPage - 1) * itemsPerPage + 1}
+            </span>{" "}
+            to{" "}
+            <span className="font-medium">
+              {Math.min(currentPage * itemsPerPage, filteredData.length)}
+            </span>{" "}
+            of <span className="font-medium">{filteredData.length}</span>{" "}
+            results
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              className={`px-3 py-1 border rounded ${
+                currentPage === 1
+                  ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Prev
+            </button>
+            <span className="px-2 text-gray-700">
+              Page <strong>{currentPage}</strong> of {totalPages}
+            </span>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              className={`px-3 py-1 border rounded ${
+                currentPage === totalPages
+                  ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {selectedTxn && (
