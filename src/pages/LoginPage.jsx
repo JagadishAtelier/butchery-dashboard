@@ -7,6 +7,7 @@ import { loginUser } from '../api/authApi'; // adjust path as needed
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
@@ -17,24 +18,30 @@ export default function LoginPage() {
     setEmailError(isValid ? '' : 'Enter a valid email address');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (emailError) return;
+const handleSubmit = async (e) => {
+  setLoading(true)
+  e.preventDefault();
+  if (emailError) return;
 
-    try {
-      const data = await loginUser({ email, password });
-      localStorage.setItem('token', data.token);
-      if (data.user.role === 'admin') {
-        navigate('/');
-        toast.success('Logged In Successfully')
-      } else {
-        toast.error('Access denied. Only admins can access this portal.');
-      }
-      navigate('/');
-    } catch (err) {
-      toast.error(err.message)
+  try {
+    const data = await loginUser({ email, password });
+    localStorage.setItem('token', data.token);
+
+    if (data.user.role === 'admin') {
+      // toast.success('Logged In Successfully', { duration: 2000 }); 
+      // wait a short moment before navigating (prevents remount issues)
+      setTimeout(() => navigate('/'), 100);
+    } else {
+      toast.error('Access denied. Only admins can access this portal.');
     }
-  };
+  } catch (err) {
+    toast.error(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   return (
     <div className="flex min-h-screen">
@@ -86,7 +93,7 @@ export default function LoginPage() {
               type="submit"
               className="w-full bg-[#42427D] hover:bg-[#42427D] text-white py-2 rounded-md transition"
             >
-              Login
+             {loading ? "Loging in...": "Login"}
             </button>
 
             <p className="text-center text-sm text-gray-600">

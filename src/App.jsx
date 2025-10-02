@@ -19,7 +19,7 @@ import ForgotPassword from './components/ForgotPassword';
 import OrderDetailsPage from './components/molecules/OrderDetailsPage';
 import PushNotificationForm from './components/molecules/PushNotificationForm';
 import PushNotificationManager from './pages/PushNotificationManager';
-
+import './App.css'
 export default function App() {
   return (
     <Router>

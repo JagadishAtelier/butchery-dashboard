@@ -8,7 +8,6 @@ import {
   Filter,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getCategoryById } from "../../api/categoryApi";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -52,49 +51,55 @@ export default function ProductList() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // ✅ Fetch all products (category info already included)
   useEffect(() => {
-    const fetchProductsWithCategories = async () => {
+    const fetchProducts = async () => {
       try {
         const productResponse = await getAllProducts();
         const products = productResponse.data;
-
-        const productsWithCategory = await Promise.all(
-          products.map(async (product) => {
-            const categoryData = await getCategoryById(product.category);
-            return { ...product, categoryData };
-          })
-        );
-
-        setProducts(productsWithCategory);
+        console.log("Fetched products:", products);
+        setProducts(products);
       } catch (error) {
-        console.error("Failed to fetch products or categories", error);
+        console.error("Failed to fetch products", error);
         toast.error("Failed to load products");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProductsWithCategories();
+    fetchProducts();
   }, []);
 
+  // ✅ Filter logic with category._id and category.name support
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
 
-    return products.filter(
-      (p) =>
-        (p.name + p.category + p._id).toLowerCase().includes(search.toLowerCase()) &&
-        (statusFilter ? p.status === statusFilter : true) &&
-        (categoryFilter ? p.category === categoryFilter : true)
-    );
+    return products.filter((p) => {
+      const matchesSearch =
+        (p.name + p._id + (p.category?.name || ""))
+          .toLowerCase()
+          .includes(search.toLowerCase());
+
+      const matchesStatus = statusFilter ? p.status === statusFilter : true;
+      const matchesCategory = categoryFilter
+        ? p.category?._id === categoryFilter
+        : true;
+
+      return matchesSearch && matchesStatus && matchesCategory;
+    });
   }, [search, statusFilter, categoryFilter, products]);
 
+  // ✅ Export filtered data to Excel
   const exportToExcel = () => {
     const data = filteredProducts.map((p) => ({
-      ID: p.id,
+      ID: p._id,
       Name: p.name,
-      Category: p.category,
-      Stock: p.stock,
-      Price: p.price,
+      Category: p.category?.name || "N/A",
+      Stock: p.stock || "N/A",
+      Price:
+        p.weightOptions.find((w) => w.weight === 1000)?.price ||
+        p.weightOptions[0]?.price ||
+        "N/A",
       Status: p.status,
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -108,26 +113,31 @@ export default function ProductList() {
     saveAs(blob, "products.xlsx");
   };
 
+  // ✅ Export filtered data to PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
     autoTable(doc, {
       head: [["ID", "Name", "Category", "Stock", "Price", "Status"]],
       body: filteredProducts.map((p) => [
-        p.id,
+        p._id,
         p.name,
-        p.category,
-        p.stock,
-        p.price,
+        p.category?.name || "N/A",
+        p.stock || "N/A",
+        p.weightOptions.find((w) => w.weight === 1000)?.price ||
+          p.weightOptions[0]?.price ||
+          "N/A",
         p.status,
       ]),
     });
     doc.save("products.pdf");
   };
 
+  // ✅ Edit
   const handleEditClick = (product) => {
     navigate(`/editproduct/${product._id}`);
   };
 
+  // ✅ Delete with Undo Toast
   const handleDeleteClick = (product) => {
     setProducts((prev) => prev.filter((p) => p._id !== product._id));
 
@@ -141,6 +151,7 @@ export default function ProductList() {
       setStatusFilter("");
       setCategoryFilter("");
     };
+
     toast(
       (t) => (
         <div className="flex items-center justify-between gap-4">
@@ -248,17 +259,25 @@ export default function ProductList() {
             <option>Active</option>
             <option>Inactive</option>
           </select>
+
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="h-9 rounded border px-3 text-sm focus:ring-indigo-500"
           >
             <option value="">All Categories</option>
-            {[...new Set(products.map((p) => p.category))].map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
+            {[
+              ...new Map(
+                products.map((p) => [p.category?._id, p.category])
+              ).values(),
+            ].map(
+              (cat) =>
+                cat && (
+                  <option key={cat._id} value={cat._id}>
+                    {cat.name}
+                  </option>
+                )
+            )}
           </select>
         </div>
       )}
@@ -300,29 +319,41 @@ export default function ProductList() {
                     <input type="checkbox" />
                   </td>
 
-                  {/* 🔹 Use auto-rotating image component */}
+                  {/* 🔹 Image */}
                   <td className="p-3">
-                    <ProductImageSlider images={product.images} title={product.name} />
+                    <ProductImageSlider
+                      images={product.images}
+                      title={product.name}
+                    />
                   </td>
 
                   <td className="p-3 whitespace-nowrap">
                     {product.name.split(" ").slice(0, 5).join(" ")}
                     {product.name.split(" ").length > 10 && "..."}
                   </td>
-                  <td className="p-3 whitespace-nowrap">{product.categoryData.name}</td>
+
+                  <td className="p-3 whitespace-nowrap">
+                    {product.category?.name || "N/A"}
+                  </td>
+
                   <td className="p-3 whitespace-nowrap">{product.productId}</td>
+
                   <td className="p-3 whitespace-nowrap">
                     {product.weightOptions.find((w) => w.weight === 1000)?.price ||
                       product.weightOptions[0]?.price ||
                       "N/A"}
                   </td>
+
                   <td
                     className={`p-3 font-medium whitespace-nowrap ${
-                      product.status === "Active" ? "text-green-600" : "text-red-600"
+                      product.status === "Active"
+                        ? "text-green-600"
+                        : "text-red-600"
                     }`}
                   >
                     {product.status}
                   </td>
+
                   <td className="p-4">
                     <div className="flex flex-wrap items-center gap-2 justify-center">
                       <button

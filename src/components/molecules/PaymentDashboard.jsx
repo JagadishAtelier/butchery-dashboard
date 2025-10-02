@@ -1,222 +1,531 @@
-import { Filter } from "lucide-react";
-import { toast } from 'react-hot-toast';
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
+import {
+  X,
+  CreditCard,
+  Receipt,
+  User,
+  Phone,
+  MapPin,
+  Wallet,
+  Tag,
+  Banknote,
+  QrCode,
+  ClipboardCopy,
+  Info, // Make sure Info is imported for the table as well
+  CircleCheckBig,
+  CircleX,
+  Filter,
+  Landmark,
+} from "lucide-react";
 
-const dummyData = [
-  {
-    payment_id: "pay_001",
-    order_id: "ord_001",
-    user_name: "John Doe",
-    user_email: "john@example.com",
-    status: "success",
-    amount: 2500,
-    gateway: "razorpay",
-  },
-  {
-    payment_id: "pay_002",
-    order_id: "ord_002",
-    user_name: "Jane Smith",
-    user_email: "jane@example.com",
-    status: "failed",
-    amount: 1500,
-    gateway: "stripe",
-  },
-  {
-    payment_id: "pay_003",
-    order_id: "ord_003",
-    user_name: "Akash Kumar",
-    user_email: "akash@example.com",
-    status: "pending",
-    amount: 3000,
-    gateway: "razorpay",
-  },
-];
+import { getPayments, refundPayment, getSettlements } from "../../api/payment";
+import StatCard from "./StatCard";
 
 const PaymentDashboard = () => {
   const [transactions, setTransactions] = useState([]);
+  const [monthlyCredited, setMonthlyCredited] = useState(0);
+  const [lastMonthCredited, setLastMonthCredited] = useState(0);
   const [filters, setFilters] = useState({
-    gateway: "",
+    gateway: "razorpay",
     status: "",
-    startDate: "",
-    endDate: "",
     searchQuery: "",
+    fromDate: "",
+    toDate: "",
   });
-
-  // New state to toggle filter visibility on mobile
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+
+  const fetchPaymentsAndSettlements = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch transactions
+      const payments = await getPayments();
+      setTransactions(payments);
+
+      const now = new Date();
+
+      // Current month range
+      const firstDayCurrent = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayCurrent = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      // Last month range
+      const firstDayLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayLast = new Date(now.getFullYear(), now.getMonth(), 0);
+
+      // Fetch settlements
+      const currentData = await getSettlements(
+        Math.floor(firstDayCurrent.getTime() / 1000),
+        Math.floor(lastDayCurrent.getTime() / 1000)
+      );
+
+      const lastData = await getSettlements(
+        Math.floor(firstDayLast.getTime() / 1000),
+        Math.floor(lastDayCurrent.getTime() / 1000)
+      ); // Corrected to lastDayCurrent
+
+      // Sum settled amounts
+      const sum = (arr) => arr.reduce((acc, s) => acc + (s.amount || 0), 0);
+
+      setMonthlyCredited(sum(currentData));
+      setLastMonthCredited(sum(lastData));
+    } catch (err) {
+      toast.error("Failed to fetch payments/settlements");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    applyFilters();
-  }, [filters]);
+    fetchPaymentsAndSettlements();
+  }, []);
 
-  const applyFilters = () => {
-    let data = dummyData;
+  const filteredData = transactions.filter((t) => {
+    const query = filters.searchQuery?.toLowerCase();
+    const txnDate = new Date(t.created_at * 1000); // Assuming t.created_at is a Unix timestamp
 
-    if (filters.status) {
-      data = data.filter((t) => t.status === filters.status);
-    }
-    if (filters.gateway) {
-      data = data.filter((t) => t.gateway === filters.gateway);
-    }
-    if (filters.searchQuery) {
-      data = data.filter(
-        (t) =>
-          t.payment_id.toLowerCase().includes(filters.searchQuery) ||
-          t.order_id.toLowerCase().includes(filters.searchQuery)
-      );
-    }
+    const from = filters.fromDate ? new Date(filters.fromDate) : null;
+    const to = filters.toDate ? new Date(filters.toDate) : null;
 
-    setTransactions(data);
+    const dateMatch = (!from || txnDate >= from) && (!to || txnDate <= to);
+
+    return (
+      (!filters.status || t.status === filters.status) &&
+      dateMatch &&
+      (!query ||
+        t.id.toLowerCase().includes(query) ||
+        t.order_id?.toLowerCase().includes(query) ||
+        t.internal_order_id?.toLowerCase().includes(query) ||
+        t.user_name?.toLowerCase().includes(query) ||
+        t.email?.toLowerCase().includes(query) || // Corrected from t.user_email
+        t.contact?.toLowerCase().includes(query) ||
+        t.notes?.contact?.toLowerCase().includes(query))
+    );
+  });
+
+  const handleRefund = async (paymentId) => {
+    try {
+      await refundPayment(paymentId);
+      toast.success(`Refund initiated for ${paymentId}`);
+      fetchPaymentsAndSettlements();
+    } catch (err) {
+      toast.error("Refund failed");
+      console.error(err);
+    }
   };
 
-  const handleRefund = (paymentId) => {
-     toast.success(`Payment Refund Initiated ${paymentId}`);
+  // Helper to filter by month
+  const filterByMonth = (txns, year, month) => {
+    return txns.filter((t) => {
+      const txnDate = new Date(t.created_at * 1000);
+      return txnDate.getFullYear() === year && txnDate.getMonth() === month;
+    });
   };
+
+  // Get transaction stats
+  const getTxnStats = (txns) => {
+    const success = txns.filter(
+      (t) => t.status?.toLowerCase() === "captured"
+    ).length;
+    const failed = txns.filter(
+      (t) => t.status?.toLowerCase() === "failed"
+    ).length;
+    return { success, failed };
+  };
+
+  const now = new Date();
+  const currentMonthTxns = filterByMonth(
+    transactions,
+    now.getFullYear(),
+    now.getMonth()
+  );
+  const lastMonthTxns = filterByMonth(
+    transactions,
+    now.getFullYear(),
+    now.getMonth() - 1
+  );
+
+  const currentStats = getTxnStats(currentMonthTxns);
+  const lastStats = getTxnStats(lastMonthTxns);
+
+  const diff = monthlyCredited - lastMonthCredited;
 
   return (
     <div className="px-2 sm:p-6 space-y-8">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold sm:mb-4">Payments Details</h2>
-
-        {/* Toggle Filters Button - visible only on mobile */}
         <button
-          onClick={() => setFiltersOpen((prev) => !prev)}
-          className="sm:hidden bg-[#F3F6FF]  text-[#2E2E62] px-4 py-2 rounded focus:outline-none"
-          aria-expanded={filtersOpen}
-          aria-controls="filter-panel"
-          aria-label="Toggle filters"
+          onClick={() => setFiltersOpen((p) => !p)}
+          className="sm:hidden bg-[#F3F6FF] text-[#2E2E62] px-4 py-2 rounded"
         >
-         <Filter size={16}/>
+          <Filter size={16} />
         </button>
       </div>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard
+          label="Approx Settled Amount"
+          value={
+            loading
+              ? "Loading..."
+              : `₹${(monthlyCredited / 100).toLocaleString()}`
+          }
+          diff={
+            loading
+              ? null
+              : `${diff >= 0 ? "↑ " : "↓ "}₹${(
+                  Math.abs(diff) / 100
+                ).toLocaleString()}`
+          }
+          color="bg-[#E0F7FA]"
+          icon={<Landmark />}
+        />
 
-     <div
-  id="filter-panel"
-  className={`
-    bg-white p-4 rounded shadow
-    flex flex-wrap gap-4
-    ${filtersOpen ? "block" : "hidden"} 
-    sm:flex
-  `}
->
-  <div className="flex-grow flex-shrink basis-full md:basis-[48%] lg:basis-[30%]">
-    <input
-      type="text"
-      placeholder="Search by Payment ID or Order ID"
-      className="w-full border px-3 py-2 rounded"
-      onChange={(e) =>
-        setFilters({ ...filters, searchQuery: e.target.value.toLowerCase() })
-      }
-    />
-  </div>
+        <StatCard
+          label="Successful"
+          value={loading ? "Loading..." : currentStats.success}
+          diff={
+            loading
+              ? null
+              : `${
+                  currentStats.success - lastStats.success >= 0 ? "↑ " : "↓ "
+                } ${Math.abs(currentStats.success - lastStats.success)}`
+          }
+          color="bg-green-100"
+          icon={<CircleCheckBig />}
+        />
 
-  <div className="flex-grow flex-shrink basis-[48%] md:basis-[23%] lg:basis-[15%]">
-    <input
-      type="date"
-      className="w-full border px-3 py-2 rounded"
-      placeholder="From"
-      value={filters.startDate}
-      onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-    />
-  </div>
+        <StatCard
+          label="Failed"
+          value={loading ? "Loading..." : currentStats.failed}
+          diff={
+            loading
+              ? null
+              : `${
+                  currentStats.failed - lastStats.failed >= 0 ? "↑ " : "↓ "
+                } ${Math.abs(currentStats.failed - lastStats.failed)}`
+          }
+          color="bg-red-100"
+          icon={<CircleX />}
+        />
+      </div>
 
-  <div className="flex-grow flex-shrink basis-[48%] md:basis-[23%] lg:basis-[15%]">
-    <input
-      type="date"
-      className="w-full border px-3 py-2 rounded"
-      placeholder="To"
-      value={filters.endDate}
-      onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-    />
-  </div>
+      {/* Filters */}
+      <div
+        id="filter-panel"
+        className={`bg-white p-3 rounded-lg shadow flex justify-between flex-col sm:flex-row gap-3 items-center mb-4
+        ${filtersOpen ? "block" : "hidden"} sm:flex`}
+      >
+        {/* Search Input */}
+        <input
+          type="text"
+          placeholder="Search by Payment ID or Order ID"
+          className="border border-gray-300 rounded-md px-3 py-2 w-full sm:w-2/4 focus:outline-none focus:ring-1 focus:ring-gray-500"
+          onChange={(e) =>
+            setFilters({ ...filters, searchQuery: e.target.value })
+          }
+        />
 
-  <div className="flex-grow flex-shrink basis-[48%] md:basis-[23%] lg:basis-[15%]">
-    <select
-      className="w-full border px-3 py-2 rounded"
-      value={filters.status}
-      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-    >
-      <option value="">All Status</option>
-      <option value="success">Success</option>
-      <option value="failed">Failed</option>
-      <option value="pending">Pending</option>
-    </select>
-  </div>
+        {/* From Date */}
+        <input
+          type="date"
+          className="border border-gray-300 rounded-md px-3 py-2 w-full sm:w-1/6 focus:outline-none focus:ring-1 focus:ring-gray-500"
+          value={filters.fromDate}
+          onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
+        />
 
-  <div className="flex-grow flex-shrink basis-[48%] md:basis-[23%] lg:basis-[15%]">
-    <select
-      className="w-full border px-3 py-2 rounded"
-      value={filters.gateway}
-      onChange={(e) => setFilters({ ...filters, gateway: e.target.value })}
-    >
-      <option value="">All Gateways</option>
-      <option value="razorpay">Razorpay</option>
-      <option value="stripe">Stripe</option>
-    </select>
-  </div>
-</div>
+        {/* To Date */}
+        <input
+          type="date"
+          className="border border-gray-300 rounded-md px-3 py-2 w-full sm:w-1/6 focus:outline-none focus:ring-1 focus:ring-gray-500"
+          value={filters.toDate}
+          onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
+        />
 
+        {/* Status Dropdown */}
+        <select
+          className="border border-gray-300 rounded-md px-3 py-2.5 w-full sm:w-1/6 focus:outline-none focus:ring-1 focus:ring-gray-500"
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+        >
+          <option value="">All Status</option>
+          <option value="captured">Success</option>
+          <option value="failed">Failed</option>
+          <option value="created">Pending</option>
+        </select>
+      </div>
 
       {/* Table */}
       <div className="bg-white p-4 rounded shadow overflow-x-auto">
-        <table className="min-w-full text-sm border">
-          <thead className="bg-gray-100 text-gray-700">
-            <tr>
-              <th className="border px-4 py-2 text-left">Payment ID</th>
-              <th className="border px-4 py-2 text-left">Order ID</th>
-              <th className="border px-4 py-2 text-left">User</th>
-              <th className="border px-4 py-2 text-left">Status</th>
-              <th className="border px-4 py-2 text-left">Amount</th>
-              <th className="border px-4 py-2 text-left">Gateway</th>
-              <th className="border px-4 py-2 text-left">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((txn) => (
-              <tr key={txn.payment_id} className="hover:bg-gray-50">
-                <td className="border px-4 py-2">{txn.payment_id}</td>
-                <td className="border px-4 py-2">{txn.order_id}</td>
-                <td className="border px-4 py-2">
-                  {txn.user_name} <br />
-                  <span className="text-xs text-gray-500">{txn.user_email}</span>
-                </td>
-                <td
-                  className={`border px-4 py-2 font-semibold capitalize ${
-                    txn.status === "success"
-                      ? "text-green-600"
-                      : txn.status === "failed"
-                      ? "text-red-600"
-                      : "text-yellow-600"
-                  }`}
-                >
-                  {txn.status}
-                </td>
-                <td className="border px-4 py-2">₹{txn.amount}</td>
-                <td className="border px-4 py-2">{txn.gateway}</td>
-                <td className="border px-4 py-2 text-center">
-                  {txn.status === "success" ? (
-                    <button
-                      onClick={() => handleRefund(txn.payment_id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                    >
-                      Refund
-                    </button>
-                  ): <p className="text-sm">Payment need to be <span className="text-green-600">success</span> to refund</p>}
-                </td>
-              </tr>
-            ))}
-            {transactions.length === 0 && (
+        {loading ? (
+          <p className="text-center py-6">Loading...</p>
+        ) : (
+          <table className="min-w-full text-sm border">
+            <thead className="bg-gray-100 text-gray-700">
               <tr>
-                <td colSpan="7" className="text-center py-4 text-gray-400">
-                  No transactions found.
-                </td>
+                <th className="border px-4 py-2">Payment ID</th>
+                <th className="border px-4 py-2">Order ID</th>
+                <th className="border px-4 py-2">Status</th>
+                <th className="border px-4 py-2">Amount</th>
+                <th className="border px-4 py-2">Method</th>
+                <th className="border px-4 py-2">Net Credited</th>
+                <th className="border px-4 py-2">Action</th>
+                <th className="border px-4 py-2">More info</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {filteredData.map((txn) => {
+                const netCredited =
+                  (txn.amount -
+                    (txn.fee || 0) -
+                    (txn.tax || 0) -
+                    (txn.amount_refunded || 0)) /
+                  100;
+
+                return (
+                  <tr key={txn.id} className="hover:bg-gray-50">
+                    <td className="border px-4 py-2">{txn.id}</td>
+                    <td className="border px-4 py-2">{txn.order_id}</td>
+                    <td
+                      className={`border px-4 py-2 capitalize ${
+                        txn.status === "captured"
+                          ? "text-green-600 font-medium" // Changed text-medium to font-medium
+                          : txn.status === "failed"
+                          ? "text-red-600 font-medium"
+                          : "text-yellow-600 font-medium"
+                      }`}
+                    >
+                      {txn.status}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      ₹{txn.amount / 100}
+                    </td>{" "}
+                    {/* Right align amount */}
+                    <td className="border px-4 py-2">{txn.method}</td>
+                    <td className="border px-4 py-2 text-right">
+                      {" "}
+                      {/* Right align net credited */}₹{netCredited.toFixed(2)}
+                    </td>
+                    <td className="border px-4 py-2 text-center">
+                      {txn.status === "captured" ? (
+                        <button
+                          onClick={() => handleRefund(txn.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors duration-200"
+                        >
+                          Refund
+                        </button>
+                      ) : (
+                        <p className="text-gray-400 text-sm">Not refundable</p>
+                      )}
+                    </td>
+                    <td className="border px-4 py-2 text-center">
+                      {txn.notes?.address ? (
+                        <button
+                          className="text-purple-600 hover:text-purple-800 transition-colors duration-200" // Styled Info button
+                          onClick={() => setSelectedTxn(txn)}
+                          title="View more details" // Added title for accessibility
+                        >
+                          <Info size={18} />
+                        </button>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
+
+      {/* Modal */}
+      {selectedTxn && (
+        <div className="fixed inset-0 bg-black -top-20 bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in-down">
+          <div className="bg-white rounded-xl top-5 shadow-2xl p-6 md:p-8 w-full max-w-3xl relative transform transition-all duration-300 scale-95 opacity-0 animate-scale-up">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedTxn(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-full p-1"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Header */}
+            <h3 className="text-2xl font-bold mb-6 text-purple-800 flex items-center">
+              <CreditCard className="mr-3 text-purple-600" size={24} />
+              Payment Details
+            </h3>
+
+            {/* Details Section */}
+            <div className="space-y-4 text-gray-700 text-base">
+              {/* Payment IDs */}
+              {/* Changed to grid-cols-1 for md screens too, or use flex-wrap if you prefer */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4">
+                <DetailItem
+                  icon={<CreditCard size={18} />}
+                  label="Payment ID"
+                  value={selectedTxn.id}
+                />
+                <DetailItem
+                  icon={<Receipt size={18} />}
+                  label="Order ID"
+                  value={selectedTxn.order_id}
+                />
+                <DetailItem // This will now neatly wrap below if space is tight, or take full width
+                  icon={<Receipt size={18} />}
+                  label="Internal Order ID"
+                  value={selectedTxn.internal_order_id || "-"}
+                  fullWidth // New prop to make it take full width on smaller grids
+                />
+              </div>
+
+              <hr className="my-4 border-gray-200" />
+
+              {/* Customer Info */}
+              <div className="space-y-2">
+                <DetailItem
+                  icon={<User size={18} />}
+                  label="Customer"
+                  value={`${selectedTxn.user_name || "-"} (${
+                    selectedTxn.email || "-"
+                  })`}
+                />
+                <DetailItem
+                  icon={<Phone size={18} />}
+                  label="Contact"
+                  value={
+                    selectedTxn.notes?.contact || selectedTxn.contact || "-"
+                  }
+                />
+                <DetailItem
+                  icon={<MapPin size={18} />}
+                  label="Address"
+                  value={selectedTxn.notes?.address || "-"}
+                />
+              </div>
+
+              <hr className="my-4 border-gray-200" />
+
+              {/* Amount & Fees */}
+              <div className="space-y-2">
+                <DetailItem
+                  icon={<CreditCard size={18} />}
+                  label="Total Amount Paid"
+                  value={`₹${(selectedTxn.amount / 100).toFixed(2)}`}
+                  highlight
+                  valueAlignment="right" // New prop for right alignment
+                />
+                {selectedTxn.fee && (
+                  <DetailItem
+                    label="Razorpay Fee"
+                    value={`-₹${(selectedTxn.fee / 100).toFixed(2)}`}
+                    valueAlignment="right"
+                  />
+                )}
+                {selectedTxn.tax && (
+                  <DetailItem
+                    label="Tax on Fee"
+                    value={`-₹${(selectedTxn.tax / 100).toFixed(2)}`}
+                    valueAlignment="right"
+                  />
+                )}
+                {selectedTxn.amount_refunded !== undefined &&
+                  selectedTxn.amount_refunded !== null && ( // Check if it's not undefined or null
+                    <DetailItem
+                      label="Amount Refunded"
+                      value={`-₹${(selectedTxn.amount_refunded / 100).toFixed(
+                        2
+                      )}`}
+                      valueAlignment="right"
+                    />
+                  )}
+                <div className="flex justify-between items-center pt-2 font-semibold text-purple-700 border-t border-gray-200 mt-3">
+                  <div className="flex items-center">
+                    <Wallet size={20} className="mr-2 text-purple-500" />
+                    <span>Approx. Credited to Bank:</span>
+                  </div>
+                  <span>
+                    ₹
+                    {(
+                      ((selectedTxn.amount || 0) -
+                        (selectedTxn.fee || 0) -
+                        (selectedTxn.tax || 0) -
+                        (selectedTxn.amount_refunded || 0)) /
+                      100
+                    ).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <hr className="my-4 border-gray-200" />
+
+              {/* Status & Method */}
+              <div className="space-y-2">
+                <DetailItem
+                  icon={<Tag size={18} />}
+                  label="Status"
+                  value={selectedTxn.status}
+                />
+                <DetailItem
+                  icon={<Banknote size={18} />}
+                  label="Payment Method"
+                  value={selectedTxn.method?.toUpperCase() || "-"}
+                />
+                {selectedTxn.acquirer_data?.upi_transaction_id && (
+                  <DetailItem
+                    icon={<QrCode size={18} />}
+                    label="UPI Transaction ID"
+                    value={selectedTxn.acquirer_data.upi_transaction_id}
+                  />
+                )}
+                {selectedTxn.acquirer_data?.rrn && (
+                  <DetailItem
+                    icon={<ClipboardCopy size={18} />}
+                    label="RRN"
+                    value={selectedTxn.acquirer_data.rrn}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default PaymentDashboard;
+
+// Helper Component for consistent styling - UPDATED
+const DetailItem = ({
+  icon,
+  label,
+  value,
+  highlight = false,
+  valueAlignment = "left",
+}) => (
+  <p
+    className={`flex items-start ${
+      highlight ? "text-purple-700 font-semibold" : ""
+    }`}
+  >
+    {icon && (
+      <span className="mr-3 mt-0.5 text-gray-500 min-w-[20px] flex-shrink-0">
+        {icon}
+      </span>
+    )}
+    <strong className="min-w-[120px] inline-block flex-shrink-0">
+      {label}:
+    </strong>{" "}
+    <span
+      className={`flex-1 ${valueAlignment === "right" ? "text-right" : ""}`}
+    >
+      {value}
+    </span>
+  </p>
+);

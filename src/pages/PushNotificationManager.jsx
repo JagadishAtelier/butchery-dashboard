@@ -110,7 +110,7 @@ export default function PushNotificationManager() {
     clearToast();
 
     try {
-      const res = await fetch(`${API_URL}/notifications/send`, {
+      const res = await fetch(`${API_URL}/api/notifications/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, body, scheduleSunday }),
@@ -142,7 +142,7 @@ export default function PushNotificationManager() {
     clearToast();
 
     try {
-      const res = await fetch(`${API_URL}/notifications/resend/${item._id}`, {
+      const res = await fetch(`${API_URL}/api/notifications/resend/${item._id}`, {
         method: "POST",
       });
       const data = await res.json();

@@ -19,7 +19,7 @@ export default function PushNotificationForm() {
     setResponseMsg("");
 
     try {
-      const res = await fetch(`${API_URL}/notifications/send`, {
+      const res = await fetch(`${API_URL}api/notifications/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, body }),
