@@ -1,12 +1,13 @@
+// WeightShippings.jsx
 import { ChevronDown } from "lucide-react";
 import React from "react";
 
 const WeightShippings = ({
   weightOptions = [],
   setWeightOptions,
-  addWeightOption: addOption,
-  updateWeightOption: updateOption,
-  removeWeightOption: removeOption,
+  addWeightOption,
+  updateWeightOption,
+  removeWeightOption,
   units = [], // e.g. ["g","kg","piece"] or [{value,label}]
 }) => {
   // normalize units into { value, label } objects
@@ -14,42 +15,48 @@ const WeightShippings = ({
     ? units.map((u) => (typeof u === "string" ? { value: u, label: u } : u))
     : [];
 
-  // Update a weight option
-  const updateWeight = (_id, field, value) => {
-    const newValue =
-      ["weight", "price", "discountPrice", "stock"].includes(field)
-        ? Number(value)
-        : value;
+  // internal updater wrapper (keeps component flexible)
+  const updateWeight = (_id, field, rawValue) => {
+    // For numeric fields convert but allow empty string
+    const numericFields = ["weight", "price", "discountPrice", "stock"];
+    let newValue;
+    if (numericFields.includes(field)) {
+      newValue = rawValue === "" ? "" : Number(rawValue);
+    } else {
+      newValue = rawValue;
+    }
 
-    if (updateOption) updateOption(_id, field, newValue);
-    else if (setWeightOptions)
+    if (typeof updateWeightOption === "function") {
+      updateWeightOption(_id, field, newValue);
+    } else if (typeof setWeightOptions === "function") {
       setWeightOptions((prev) =>
         prev.map((opt) => (_id === opt._id ? { ...opt, [field]: newValue } : opt))
       );
+    }
   };
 
-  // Remove a weight option
   const removeWeight = (_id) => {
-    if (removeOption) removeOption(_id);
-    else if (setWeightOptions)
+    if (typeof removeWeightOption === "function") {
+      removeWeightOption(_id);
+    } else if (typeof setWeightOptions === "function") {
       setWeightOptions((prev) => prev.filter((opt) => opt._id !== _id));
+    }
   };
 
-  // Add a new weight option — unit left empty so user must pick a unit
   const addWeight = () => {
-    if (addOption) addOption();
-    else if (setWeightOptions)
-      setWeightOptions((prev) => [
-        ...prev,
-        {
-          _id: Date.now().toString(), // temporary ID for frontend
-          weight: 0,
-          unit: "", // intentionally empty so no default is shown
-          price: 0,
-          discountPrice: 0,
-          stock: 0,
-        },
-      ]);
+    if (typeof addWeightOption === "function") {
+      addWeightOption();
+    } else if (typeof setWeightOptions === "function") {
+      const newItem = {
+        _id: Date.now().toString() + Math.floor(Math.random() * 1000).toString(),
+        weight: "",
+        unit: "",
+        price: "",
+        discountPrice: "",
+        stock: "",
+      };
+      setWeightOptions((prev) => [...prev, newItem]);
+    }
   };
 
   return (
@@ -65,7 +72,7 @@ const WeightShippings = ({
             <input
               type="number"
               placeholder="Weight"
-              value={opt.weight}
+              value={opt.weight === undefined || opt.weight === null ? "" : opt.weight}
               onChange={(e) => updateWeight(opt._id, "weight", e.target.value)}
               className="h-10 rounded-md border px-3 w-1/6"
             />
@@ -88,7 +95,7 @@ const WeightShippings = ({
             <input
               type="number"
               placeholder="Selling Price"
-              value={opt.price}
+              value={opt.price === undefined || opt.price === null ? "" : opt.price}
               onChange={(e) => updateWeight(opt._id, "price", e.target.value)}
               className="h-10 rounded-md border px-3 w-1/6"
             />
@@ -97,10 +104,8 @@ const WeightShippings = ({
             <input
               type="number"
               placeholder="Actual Price"
-              value={opt.discountPrice || 0}
-              onChange={(e) =>
-                updateWeight(opt._id, "discountPrice", e.target.value)
-              }
+              value={opt.discountPrice === undefined || opt.discountPrice === null ? "" : opt.discountPrice}
+              onChange={(e) => updateWeight(opt._id, "discountPrice", e.target.value)}
               className="h-10 rounded-md border px-3 w-1/6"
             />
 
@@ -108,7 +113,7 @@ const WeightShippings = ({
             <input
               type="number"
               placeholder="Stock"
-              value={opt.stock}
+              value={opt.stock === undefined || opt.stock === null ? "" : opt.stock}
               onChange={(e) => updateWeight(opt._id, "stock", e.target.value)}
               className="h-10 rounded-md border px-3 w-1/6"
             />
