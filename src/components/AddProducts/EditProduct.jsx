@@ -164,7 +164,7 @@ const EditProduct = () => {
       };
 
       await updateProduct(productId, payload);
-      toast.success("Product updated successfully!");
+      toast.success("Product updated successfully!", { id: "product-update" });
       navigate("/products");
     } catch (err) {
       console.error(err);
@@ -176,7 +176,17 @@ const EditProduct = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white shadow rounded">
-      <h2 className="text-2xl font-semibold mb-6">Edit Product</h2>
+      <div className="flex justify-between items-center ">
+        
+      <h2 className="text-2xl font-semibold">Edit Product</h2>
+      <button
+        onClick={() => navigate("/products")}
+        className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+      >
+        Back
+      </button>
+      </div>
+      
 
       {/* Photos */}
       <ProductPhotoUpload initialImages={productPhotos} onImagesChange={setProductPhotos} />
