@@ -7,6 +7,7 @@ import {
   createCategory,
   deleteCategory,
 } from "../api/categoryApi";
+import { uploadToCloudinary } from "../api/imageUpload";
 
 export default function CategoryPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -34,14 +35,21 @@ export default function CategoryPage() {
     }
   };
 
-  // Handle file upload for edit modal
-  const handleFileUpload = (file) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewImage(reader.result);
-      setEditingCategory({ ...editingCategory, image: reader.result });
-    };
-    if (file) reader.readAsDataURL(file);
+  // ✅ Handle file upload for edit modal (uploads to Cloudinary)
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    try {
+      setEditLoading(true);
+      // uploads to Cloudinary; folder "categories"
+      const uploadedUrl = await uploadToCloudinary(file, "categories");
+      setEditingCategory((prev) => ({ ...(prev || {}), image: uploadedUrl }));
+      setPreviewImage(uploadedUrl);
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setEditError("Failed to upload image. Please try again.");
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   // Handle edit category
@@ -153,6 +161,7 @@ export default function CategoryPage() {
                     onClick={() => {
                       setEditingCategory(cat);
                       setPreviewImage(null);
+                      setEditError("");
                     }}
                     className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
                   >
@@ -177,7 +186,7 @@ export default function CategoryPage() {
           <div className="bg-white p-6 rounded-md shadow w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">Edit Category</h2>
 
-            {/* Image Upload */}
+            {/* ✅ Image Upload (uploads to Cloudinary) */}
             <div
               onClick={() => fileInputRef.current.click()}
               onDrop={(e) => {
@@ -188,7 +197,7 @@ export default function CategoryPage() {
               onDragOver={(e) => e.preventDefault()}
               className="group relative w-full h-40 border-2 border-dashed rounded flex flex-col items-center justify-center text-gray-500 hover:border-gray-400 cursor-pointer mb-4 overflow-hidden"
             >
-              {(previewImage || editingCategory.image) ? (
+              {previewImage || editingCategory.image ? (
                 <img
                   src={previewImage || editingCategory.image}
                   alt="Preview"
