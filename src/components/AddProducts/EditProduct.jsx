@@ -16,13 +16,38 @@ const EditProduct = () => {
   const navigate = useNavigate();
 
   const [productPhotos, setProductPhotos] = useState([]);
-  const [productInfo, setProductInfo] = useState({ productId: "", productName: "",tamilName: "",  category: "" });
-  const [productDetails, setProductDetails] = useState({ condition: "", description: "",tamilDescription: "",  videoUrl: "", cutType: "", shelfLife: "", storageInstructions: "", certifications: [] });
+  const [productInfo, setProductInfo] = useState({ productId: "", productName: "", tamilName: "", category: "" });
+  const [productDetails, setProductDetails] = useState({ condition: "", description: "", tamilDescription: "", videoUrl: "", cutType: "", shelfLife: "", storageInstructions: "", certifications: [] });
   const [variants, setVariants] = useState([]);
   const [weightOptions, setWeightOptions] = useState([]);
   const [productManagementData, setProductManagementData] = useState({ isActive: false, stock: "", sku: "", price: "" });
-  const [weightShippingData, setWeightShippingData] = useState({ weight: "", weightUnit: "Gram (g)", dimensions: { width: "", height: "", length: "" }, dimensionsUnit: "inch", insurance: "optional", shippingService: "standard", preOrder: false });
+  const [weightShippingData, setWeightShippingData] = useState({
+    weight: "",
+    unit: "", // <-- normalized to `unit`
+    dimensions: { width: "", height: "", length: "" },
+    dimensionsUnit: "inch",
+    insurance: "optional",
+    shippingService: "standard",
+    preOrder: false
+  });
+  const [units, setUnits] = useState([]); // units from backend e.g. ["g","kg","piece"] or [{value,label},...]
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const res = await fetch("/api/units"); // implement this endpoint to return { units: [...] }
+        if (!res.ok) throw new Error("units fetch failed");
+        const json = await res.json();
+        setUnits(json.units || json || []);
+      } catch (err) {
+        console.warn("Failed to load units from backend, using fallback", err);
+        setUnits(["g", "kg", "piece"]);
+      }
+    };
+
+    fetchUnits();
+  }, []);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -49,7 +74,7 @@ const EditProduct = () => {
           certifications: data.certifications || [],
         });
 
-        // Convert flattened variant list into structured variants for UI
+        // group flattened variant array (same as your previous logic)
         const groupedVariants = (data.variant || []).reduce((acc, v) => {
           let found = acc.find((item) => item.name === v.name);
           if (found) found.options.push({ id: Date.now() + Math.random(), value: v.value });
@@ -58,25 +83,26 @@ const EditProduct = () => {
         }, []);
         setVariants(groupedVariants);
 
+        // Normalize weightOptions — ensure each option has _id and the expected fields
         setWeightOptions((data.weightOptions || []).map((w) => ({
-          id: Date.now() + Math.random(),
-          weight: w.weight,
-          price: w.price,
-          discountPrice: w.discountPrice || 0,
-          stock: w.stock
+          _id: w._id || (Date.now() + Math.random()).toString(),
+          weight: w.weight ?? 0,
+          unit: w.unit ?? "", // may be empty string if backend doesn't have it
+          price: w.price ?? 0,
+          discountPrice: w.discountPrice ?? 0,
+          stock: w.stock ?? 0,
         })));
-        
 
         setProductManagementData({
           isActive: data.status === "Active",
           sku: data.SKU || "",
-          stock: data.stock || 0,
-          price: data.price || 0,
+          stock: data.stock ?? 0,
+          price: data.price ?? 0,
         });
 
         setWeightShippingData({
           weight: data.shipping?.weight || "",
-          weightUnit: "Gram (g)",
+          unit: data.shipping?.weightUnit || "", // map shipping unit from backend if present
           dimensions: {
             width: data.shipping?.size?.width || "",
             height: data.shipping?.size?.height || "",
@@ -108,7 +134,6 @@ const EditProduct = () => {
           return null;
         })
       );
-            
 
       const payload = {
         productId: productInfo.productId,
@@ -124,15 +149,22 @@ const EditProduct = () => {
         shelfLife: productDetails.shelfLife,
         storageInstructions: productDetails.storageInstructions,
         certifications: productDetails.certifications,
-        unit: weightShippingData.unit || "kg",
-        weightOptions: weightOptions.map((w) => ({ weight: Number(w.weight), price: Number(w.price),  discountPrice: Number(w.discountPrice || 0), stock: Number(w.stock || 0) })),
+        // use first weight option unit if product-level unit not set
+        unit: weightOptions[0]?.unit || weightShippingData.unit || "kg",
+        weightOptions: weightOptions.map((w) => ({
+          weight: Number(w.weight || 0),
+          unit: w.unit || "",
+          price: Number(w.price || 0),
+          discountPrice: Number(w.discountPrice || 0),
+          stock: Number(w.stock || 0),
+        })),
         SKU: productManagementData.sku,
         status: productManagementData.isActive ? "Active" : "Inactive",
         stock: productManagementData.stock,
       };
 
       await updateProduct(productId, payload);
-      toast.success("Product updated successfully!");
+      toast.success("Product updated successfully!", { id: "product-update" });
       navigate("/products");
     } catch (err) {
       console.error(err);
@@ -144,7 +176,17 @@ const EditProduct = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white shadow rounded">
-      <h2 className="text-2xl font-semibold mb-6">Edit Product</h2>
+      <div className="flex justify-between items-center ">
+        
+      <h2 className="text-2xl font-semibold">Edit Product</h2>
+      <button
+        onClick={() => navigate("/products")}
+        className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+      >
+        Back
+      </button>
+      </div>
+      
 
       {/* Photos */}
       <ProductPhotoUpload initialImages={productPhotos} onImagesChange={setProductPhotos} />
@@ -155,8 +197,8 @@ const EditProduct = () => {
         setProductId={(val) => setProductInfo((prev) => ({ ...prev, productId: val }))}
         productName={productInfo.productName}
         setProductName={(val) => setProductInfo((prev) => ({ ...prev, productName: val }))}
-        tamilName={productInfo.tamilName}   // ✅ Pass
-  setTamilName={(val) => setProductInfo((prev) => ({ ...prev, tamilName: val }))}
+        tamilName={productInfo.tamilName}
+        setTamilName={(val) => setProductInfo((prev) => ({ ...prev, tamilName: val }))}
         category={productInfo.category}
         setCategory={(val) => setProductInfo((prev) => ({ ...prev, category: val }))}
       />
@@ -165,10 +207,8 @@ const EditProduct = () => {
       <ProductDetailStep
         description={productDetails.description}
         setDescription={(val) => setProductDetails((prev) => ({ ...prev, description: val }))}
-        tamilDescription={productDetails.tamilDescription}   // ✅ new
-        setTamilDescription={(val) =>
-          setProductDetails((prev) => ({ ...prev, tamilDescription: val }))
-        }
+        tamilDescription={productDetails.tamilDescription}
+        setTamilDescription={(val) => setProductDetails((prev) => ({ ...prev, tamilDescription: val }))}
         cutType={productDetails.cutType}
         setCutType={(val) => setProductDetails((prev) => ({ ...prev, cutType: val }))}
         shelfLife={productDetails.shelfLife}
@@ -193,10 +233,10 @@ const EditProduct = () => {
 
       {/* Weight & Shipping */}
       <WeightShippings
-  weightOptions={weightOptions}
-  setWeightOptions={setWeightOptions}
-/>
-
+        weightOptions={weightOptions}
+        setWeightOptions={setWeightOptions}
+        units={units}
+      />
 
       <div className="mt-6 flex justify-end">
         <button onClick={handleSubmit} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
