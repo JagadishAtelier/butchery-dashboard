@@ -47,7 +47,7 @@ export default function App() {
         </Route>
       </Routes>
       <Toaster position="bottom-center" />
-      <ChatBot/>
+      {/* <ChatBot/> */}
     </Router>
   );
 }

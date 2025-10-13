@@ -259,6 +259,7 @@ const PaymentDashboard = () => {
           <option value="">All Status</option>
           <option value="captured">Success</option>
           <option value="failed">Failed</option>
+          <option value="refunded">Refunded</option>
           <option value="created">Pending</option>
         </select>
       </div>
@@ -475,7 +476,7 @@ const PaymentDashboard = () => {
                 <DetailItem
                   icon={<User size={18} />}
                   label="Customer"
-                  value={`${selectedTxn.user_name || "-"} (${
+                  value={`${selectedTxn.notes.name || "Name not mentioned"} (${
                     selectedTxn.email || "-"
                   })`}
                 />
