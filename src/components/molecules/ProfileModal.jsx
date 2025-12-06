@@ -1,18 +1,43 @@
-import React, { useEffect, useRef } from "react";
-import { User, Settings, LogOut, X } from "lucide-react";
-import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from "react";
+import { User, LogOut, X, Download } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function ProfileModal({ open, onClose }) {
   const modalRef = useRef();
-   const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [canInstall, setCanInstall] = useState(false);
 
-const handleLogout = () => {
-  localStorage.removeItem('token');
-  toast.success('You have been logged out');
-  navigate('/login');
-};
+  // Detect Mobile only
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+  useEffect(() => {
+    setCanInstall(!!window.deferredPWA); // check if install prompt available
+  }, [open]);
+
+  const handleInstallPWA = async () => {
+    const promptEvent = window.deferredPWA;
+
+    if (!promptEvent) {
+      toast.error("App install not available right now.");
+      return;
+    }
+
+    promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+
+    if (choice.outcome === "accepted") {
+      toast.success("App installed successfully!");
+      window.deferredPWA = null;
+      setCanInstall(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    toast.success("You have been logged out");
+    navigate("/login");
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -58,16 +83,22 @@ const handleLogout = () => {
         <ul className="text-sm divide-y divide-gray-100">
           <li
             className="flex items-center gap-2 py-2 px-1 cursor-pointer hover:text-blue-600"
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate("/profile")}
           >
             <User className="w-4 h-4" /> Profile
           </li>
-          {/* <li
-            className="flex items-center gap-2 py-2 px-1 cursor-pointer hover:text-blue-600"
-            onClick={() => console.log("Settings")}
-          >
-            <Settings className="w-4 h-4" /> Settings
-          </li> */}
+
+          {/* Install App Button (Mobile Only) */}
+          {isMobile && canInstall && (
+            <li
+              className="flex items-center gap-2 py-2 px-1 cursor-pointer text-green-600 hover:text-green-700"
+              onClick={handleInstallPWA}
+            >
+              <Download className="w-4 h-4" />
+              Install App
+            </li>
+          )}
+
           <li
             className="flex items-center gap-2 py-2 px-1 cursor-pointer text-red-500 hover:text-red-700"
             onClick={handleLogout}

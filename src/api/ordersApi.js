@@ -7,3 +7,6 @@ export const getOrderById = (id) => axios.get(`${BASE_URL}/${id}`);
 export const createOrder = (data) => axios.post(BASE_URL, data);
 export const updateOrder = (id, data) => axios.put(`${BASE_URL}/${id}`, data);
 export const deleteOrder = (id) => axios.delete(`${BASE_URL}/${id}`);
+export const updateOrderStatus = (orderId, status) => {
+  return axios.put(`${BASE_URL}/${orderId}/adminorderstatus`, { status });
+};

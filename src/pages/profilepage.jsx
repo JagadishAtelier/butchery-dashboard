@@ -1,6 +1,6 @@
 // src/pages/ProfilePage.jsx
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   User,
   Mail,
@@ -322,7 +322,6 @@ const ProfilePage = () => {
 
   return (
     <div className="bg-[#F3F6FF] p-4 sm:p-6 lg:p-8 flex items-center justify-center font-inter min-h-screen">
-      <Toaster />
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-6 sm:p-8 lg:p-10">
         <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-8 text-center">My Profile</h1>
 

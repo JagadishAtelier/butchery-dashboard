@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import toast, { Toaster } from "react-hot-toast";
-import { BellRing, PackageCheck, BarChart2, X, Truck, Check } from "lucide-react";
+import toast from "react-hot-toast";
+import {
+  BellRing,
+  PackageCheck,
+  BarChart2,
+  X,
+  Truck,
+  Check,
+} from "lucide-react";
 
 /**
  * NotificationModal
@@ -18,7 +25,8 @@ import { BellRing, PackageCheck, BarChart2, X, Truck, Check } from "lucide-react
 export default function NotificationModal({
   open,
   onClose,
-  socketUrl = import.meta.env.VITE_API_BASE_URL || "https://butchery-backend.onrender.com",
+  socketUrl = import.meta.env.VITE_API_BASE_URL ||
+    "https://butchery-backend.onrender.com",
   role = "admin",
   userId = null,
   showToast = true,
@@ -27,6 +35,8 @@ export default function NotificationModal({
 }) {
   const modalRef = useRef();
   const socketRef = useRef(null);
+
+  
 
   // initialize from localStorage so notifications persist across refresh
   const [notifications, setNotifications] = useState(() => {
@@ -74,6 +84,45 @@ export default function NotificationModal({
   };
 
   useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission().then((perm) => {
+        console.log("Notification permission:", perm);
+      });
+    }
+  }, []);
+
+  const showBrowserNotification = (title, message, url) => {
+  if (!("Notification" in window)) {
+    console.log("❌ Notification API not supported in this browser");
+    return;
+  }
+  console.log("🔔 Notification.permission:", Notification.permission);
+
+  if (Notification.permission !== "granted") {
+    console.log("❌ Notification not granted");
+    return;
+  }
+
+  try {
+    const notification = new Notification(title, {
+      body: message,
+      icon: "/logo.svg",
+      tag: "new-order",
+    });
+    console.log("✅ Notification triggered", notification);
+
+    notification.onclick = (event) => {
+      event.preventDefault();
+      console.log("🔗 Notification clicked");
+      if (url) window.open(url, "_blank");
+      window.focus();
+    };
+  } catch (err) {
+    console.error("❌ Notification error:", err);
+  }
+};
+
+  useEffect(() => {
     function handleClickOutside(event) {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
         onClose();
@@ -103,12 +152,33 @@ export default function NotificationModal({
 
     // --- events we listen for ---
     socket.on("newOrder", (data) => {
+      try {
+        const audio = new Audio("/order_placed_notification.mp3");
+        audio.play().catch((err) => {
+          console.warn(
+            "Audio play failed (possibly due to user gesture restrictions):",
+            err
+          );
+        });
+      } catch (err) {
+        console.error("Error playing notification sound:", err);
+      }
       pushNotification({
         type: "order",
         title: "New order",
-        message: `Order ${data.orderId ?? data._id} placed — ₹${data.finalAmount ?? data.total ?? ""}`,
+        message: `Order ${data.orderId ?? data._id} placed — ₹${
+          data.finalAmount ?? data.total ?? ""
+        }`,
         meta: data,
       });
+      const orderId = data.orderId ?? data._id;
+      setTimeout(() => {
+        showBrowserNotification(
+          "🛒 New Order Received!",
+          `Order ${orderId} placed — ₹${data.finalAmount ?? data.total ?? ""}`,
+          `${window.location.origin}/orders/${orderId}`
+        );
+      }, 500);
     });
 
     socket.on("ordersUpdate", (payload) => {
@@ -193,7 +263,10 @@ export default function NotificationModal({
           const next = e.newValue ? JSON.parse(e.newValue) : [];
           if (Array.isArray(next)) setNotifications(next);
         } catch (err) {
-          console.error("Failed to parse notifications from storage event", err);
+          console.error(
+            "Failed to parse notifications from storage event",
+            err
+          );
         }
       }
     }
@@ -214,7 +287,7 @@ export default function NotificationModal({
   // navigation: use onNavigate if provided, else use window.location
   const handleClickNotification = (n) => {
     // order id fallback checks
-    const orderId =  n.meta?._id ?? n.meta?.id ?? null;
+    const orderId = n.meta?._id ?? n.meta?.id ?? null;
     const orderUrl = n.meta?.orderUrl ?? null; // optional full URL from server
     let path = null;
 
@@ -231,31 +304,39 @@ export default function NotificationModal({
       try {
         onNavigate(path, n);
       } catch (err) {
-        console.warn("onNavigate threw an error, falling back to window.location", err);
+        console.warn(
+          "onNavigate threw an error, falling back to window.location",
+          err
+        );
         // fallback below
-        const dest = /^https?:\/\//i.test(path) ? path : `${window.location.origin}${path}`;
+        const dest = /^https?:\/\//i.test(path)
+          ? path
+          : `${window.location.origin}${path}`;
         window.location.href = dest;
       }
     } else {
-      const dest = /^https?:\/\//i.test(path) ? path : `${window.location.origin}${path}`;
+      const dest = /^https?:\/\//i.test(path)
+        ? path
+        : `${window.location.origin}${path}`;
       window.location.href = dest;
     }
   };
 
   // simple icon mapper
   const Icon = ({ t }) => {
-    if (t === "order") return <PackageCheck className="w-4 h-4 text-green-500" />;
+    if (t === "order")
+      return <PackageCheck className="w-4 h-4 text-green-500" />;
     if (t === "assigned") return <Truck className="w-4 h-4 text-orange-500" />;
     if (t === "claimed") return <Check className="w-4 h-4 text-red-500" />;
-    if (t === "status") return <BarChart2 className="w-4 h-4 text-indigo-500" />;
+    if (t === "status")
+      return <BarChart2 className="w-4 h-4 text-indigo-500" />;
     return <BellRing className="w-4 h-4 text-blue-500" />;
   };
 
-  if (!open) return <><Toaster /></>;
+ if (!open) return null;
 
   return (
     <>
-      <Toaster />
       <div className="absolute right-0 sm:right-24 top-20 sm:top-24 z-50">
         <div
           ref={modalRef}
@@ -287,7 +368,10 @@ export default function NotificationModal({
                 role="button"
                 tabIndex={0}
                 onClick={() => handleClickNotification(n)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClickNotification(n); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ")
+                    handleClickNotification(n);
+                }}
                 className="flex items-start p-3 gap-3 text-gray-700 hover:bg-gray-50 rounded cursor-pointer"
               >
                 <div className="mt-0.5">
@@ -303,7 +387,9 @@ export default function NotificationModal({
                   </div>
                   <div className="text-xs text-gray-600">{n.message}</div>
                   {n.meta?.orderId && (
-                    <div className="text-xs text-gray-400 mt-1">Order: {n.meta.orderId}</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Order: {n.meta.orderId}
+                    </div>
                   )}
                 </div>
               </li>

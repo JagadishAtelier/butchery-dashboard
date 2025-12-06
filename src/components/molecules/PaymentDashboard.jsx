@@ -12,7 +12,7 @@ import {
   Banknote,
   QrCode,
   ClipboardCopy,
-  Info, // Make sure Info is imported for the table as well
+  Info,
   CircleCheckBig,
   CircleX,
   Filter,

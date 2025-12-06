@@ -77,7 +77,7 @@ export default function Header({ sidebarOpen, setSidebarOpen }) {
 
         {/* Profile Image (desktop only) */}
         <div
-          className="w-10 h-10 hidden sm:block bg-gray-300 rounded-tl-[10px] rounded-tr-[5px] rounded-br-[10px] rounded-bl-[5px] overflow-hidden cursor-pointer"
+          className="w-10 h-10 sm:block bg-gray-300 rounded-tl-[10px] rounded-tr-[5px] rounded-br-[10px] rounded-bl-[5px] overflow-hidden cursor-pointer"
           onClick={() => setActiveProfile(!activeProfile)}
         >
           <img

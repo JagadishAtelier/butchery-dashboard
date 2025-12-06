@@ -26,6 +26,7 @@ const handleSubmit = async (e) => {
   try {
     const data = await loginUser({ email, password });
     localStorage.setItem('token', data.token);
+    console.log(localStorage.setItem('token', data.token))
 
     if (data.user.role === 'admin') {
       // toast.success('Logged In Successfully', { duration: 2000 }); 

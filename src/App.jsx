@@ -20,7 +20,22 @@ import OrderDetailsPage from './components/molecules/OrderDetailsPage';
 import PushNotificationForm from './components/molecules/PushNotificationForm';
 import PushNotificationManager from './pages/PushNotificationManager';
 import './App.css'
+import { useEffect, useState } from 'react';
 export default function App() {
+ const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      window.deferredPWA = e; // store globally for other components
+    });
+
+    window.addEventListener("appinstalled", () => {
+      window.deferredPWA = null;
+    });
+  }, []);
+  
   return (
     <Router>
       <Routes>

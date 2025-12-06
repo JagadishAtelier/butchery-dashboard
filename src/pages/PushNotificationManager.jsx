@@ -1,58 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { Send, Bell, Loader2, RotateCcw, RefreshCcw, User, BellIcon } from "lucide-react";
+
 import StatCard from "../components/molecules/StatCard";
-// Simple Toast Notification Component
-const NotificationToast = ({ message, type, onClose }) => {
-  if (!message) return null;
-
-  const baseClasses =
-    "fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-2 text-white z-50";
-  let typeClasses = "";
-
-  switch (type) {
-    case "success":
-      typeClasses = "bg-green-500";
-      break;
-    case "error":
-      typeClasses = "bg-red-500";
-      break;
-    case "warning":
-      typeClasses = "bg-yellow-500 text-gray-800";
-      break;
-    case "info":
-      typeClasses = "bg-blue-500";
-      break;
-    default:
-      typeClasses = "bg-gray-700";
-  }
-
-  useEffect(() => {
-    const timer = setTimeout(onClose, 5000);
-    return () => clearTimeout(timer);
-  }, [message, onClose]);
-
-  return (
-    <div className={`${baseClasses} ${typeClasses}`}>
-      <span>{message}</span>
-      <button
-        onClick={onClose}
-        className="ml-2 text-white opacity-75 hover:opacity-100"
-      >
-        &times;
-      </button>
-    </div>
-  );
-};
+import { toast } from "react-hot-toast";
 
 export default function PushNotificationManager() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [notificationToast, setNotificationToast] = useState({
-    message: "",
-    type: "",
-  });
   const [history, setHistory] = useState([]);
   const [formResponseMsg, setFormResponseMsg] = useState("");
   const [stats, setStats] = useState({
@@ -60,6 +16,7 @@ export default function PushNotificationManager() {
     visitedViaPush: 0,
   });
   const [scheduleSunday, setScheduleSunday] = useState(false);
+
 
   const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -72,9 +29,9 @@ export default function PushNotificationManager() {
       setStats(data);
     } catch (err) {
       console.error(err);
-      showToast("Failed to load stats", "error");
+      toast.error("Something went wrong");
     }
-  }, [API_URL]);
+  }, [API_URL, toast]);
 
   // Fetch History
   const fetchHistory = useCallback(async () => {
@@ -86,19 +43,16 @@ export default function PushNotificationManager() {
       setHistory(data || []);
     } catch (err) {
       console.error("Failed to fetch history", err);
-      showToast("Failed to load history.", "error");
+      toast.error("Something went wrong");
     } finally {
       setHistoryLoading(false);
     }
-  }, [API_URL]);
+  }, [API_URL, toast]);
 
   useEffect(() => {
     fetchStats();
     fetchHistory();
   }, [fetchStats, fetchHistory]);
-
-  const showToast = (message, type) => setNotificationToast({ message, type });
-  const clearToast = () => setNotificationToast({ message: "", type: "" });
 
   const handleSendNotification = async () => {
     if (!title.trim() || !body.trim()) {
@@ -107,7 +61,7 @@ export default function PushNotificationManager() {
     }
 
     setLoading(true);
-    clearToast();
+    setFormResponseMsg("");
 
     try {
       const res = await fetch(`${API_URL}/api/notifications/send`, {
@@ -118,18 +72,18 @@ export default function PushNotificationManager() {
 
       const data = await res.json();
       if (res.ok) {
-        showToast("Notification sent successfully!", "success");
+        toast.success("Notification sent successfully!");
         setTitle("");
         setBody("");
         setScheduleSunday(false);
         fetchHistory();
         fetchStats();
       } else {
-        showToast(`Failed to send: ${data.error || "Unknown error"}`, "error");
+        toast.error("Something went wrong");
       }
     } catch (error) {
       console.error("Send error:", error);
-      showToast("Failed to send notification. Network error?", "error");
+      toast.destructive("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -139,7 +93,6 @@ export default function PushNotificationManager() {
     if (!confirm(`Are you sure you want to resend "${item.title}"?`)) return;
 
     setLoading(true);
-    clearToast();
 
     try {
       const res = await fetch(`${API_URL}/api/notifications/resend/${item._id}`, {
@@ -147,18 +100,19 @@ export default function PushNotificationManager() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Notification "${item.title}" resent!`, "success");
+        toast.success("Notification sent successfully!");
         fetchHistory();
         fetchStats();
       } else {
-        showToast(
-          `Failed to resend: ${data.error || "Unknown error"}`,
-          "error"
-        );
+        toast({
+          title: "Error",
+          description: data.error || "Failed to resend notification.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error(err);
-      showToast("Failed to resend notification. Network error?", "error");
+      toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -342,12 +296,6 @@ export default function PushNotificationManager() {
           )}
         </section>
       </div>
-
-      <NotificationToast
-        message={notificationToast.message}
-        type={notificationToast.type}
-        onClose={clearToast}
-      />
     </div>
   );
 }
