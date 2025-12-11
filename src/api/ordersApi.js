@@ -10,3 +10,9 @@ export const deleteOrder = (id) => axios.delete(`${BASE_URL}/${id}`);
 export const updateOrderStatus = (orderId, status) => {
   return axios.put(`${BASE_URL}/${orderId}/adminorderstatus`, { status });
 };
+
+// 👇👇 added
+
+export const getUnreadOrders = () => axios.get(`${BASE_URL}/unread`);
+
+export const markOrderAsRead = (id) => axios.patch(`${BASE_URL}/${id}/read`);

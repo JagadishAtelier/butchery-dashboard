@@ -25,7 +25,8 @@ import {
 export default function NotificationModal({
   open,
   onClose,
-  socketUrl = import.meta.env.VITE_API_BASE_URL ||
+  socketUrl =
+    import.meta.env.VITE_API_BASE_URL ||
     "https://butchery-backend.onrender.com",
   role = "admin",
   userId = null,
@@ -36,7 +37,25 @@ export default function NotificationModal({
   const modalRef = useRef();
   const socketRef = useRef(null);
 
-  
+  // audio refs / unlock
+  const audioRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  // repeating alarm interval ref
+  const ringIntervalRef = useRef(null);
+
+  // how often to repeat alarm (ms)
+  const RING_INTERVAL_MS = 60 * 1000; // 1 minute
+
+  // initialize audio enabled from localStorage (remember user's choice)
+  const [audioEnabled, setAudioEnabled] = useState(() => {
+    try {
+      return !!localStorage.getItem(`${storageKey}_audio_enabled`);
+    } catch {
+      return false;
+    }
+  });
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   // initialize from localStorage so notifications persist across refresh
   const [notifications, setNotifications] = useState(() => {
@@ -51,6 +70,27 @@ export default function NotificationModal({
       return [];
     }
   });
+
+  // create audio element once
+  useEffect(() => {
+    const a = new Audio("/order_placed_notification.mp3");
+    a.preload = "auto";
+    a.loop = false;
+    audioRef.current = a;
+
+    return () => {
+      try {
+        if (ringIntervalRef.current) {
+          clearInterval(ringIntervalRef.current);
+          ringIntervalRef.current = null;
+        }
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const persistNotifications = (arr) => {
     try {
@@ -83,6 +123,7 @@ export default function NotificationModal({
     }
   };
 
+  // request Notification permission early
   useEffect(() => {
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission().then((perm) => {
@@ -92,35 +133,78 @@ export default function NotificationModal({
   }, []);
 
   const showBrowserNotification = (title, message, url) => {
-  if (!("Notification" in window)) {
-    console.log("❌ Notification API not supported in this browser");
-    return;
-  }
-  console.log("🔔 Notification.permission:", Notification.permission);
+    if (!("Notification" in window)) {
+      console.log("❌ Notification API not supported in this browser");
+      return;
+    }
+    if (Notification.permission !== "granted") {
+      console.log("❌ Notification not granted");
+      return;
+    }
 
-  if (Notification.permission !== "granted") {
-    console.log("❌ Notification not granted");
-    return;
-  }
+    try {
+      const notification = new Notification(title, {
+        body: message,
+        icon: "/logo.svg",
+        tag: `notif_${Date.now()}`,
+      });
+      notification.onclick = (event) => {
+        event.preventDefault();
+        if (url) {
+          // open in new tab
+          window.open(url, "_blank");
+        }
+        window.focus();
+      };
+    } catch (err) {
+      console.error("❌ Notification error:", err);
+    }
+  };
 
-  try {
-    const notification = new Notification(title, {
-      body: message,
-      icon: "/logo.svg",
-      tag: "new-order",
-    });
-    console.log("✅ Notification triggered", notification);
+  // Unlock audio playback by user gesture
+  const enableAudio = async () => {
+    try {
+      // create/resume AudioContext (helps unblock some browsers)
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        if (!audioCtxRef.current) audioCtxRef.current = new AC();
+        try {
+          await audioCtxRef.current.resume();
+        } catch (err) {
+          // ignore
+        }
+      }
 
-    notification.onclick = (event) => {
-      event.preventDefault();
-      console.log("🔗 Notification clicked");
-      if (url) window.open(url, "_blank");
-      window.focus();
-    };
-  } catch (err) {
-    console.error("❌ Notification error:", err);
-  }
-};
+      // Play a very short sound to unlock
+      if (!audioRef.current) {
+        audioRef.current = new Audio("/order_placed_notification.mp3");
+        audioRef.current.preload = "auto";
+      }
+
+      await audioRef.current.play();
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+
+      setAudioEnabled(true);
+      localStorage.setItem(`${storageKey}_audio_enabled`, "1");
+      setAudioBlocked(false);
+      toast.success("Sound notifications enabled");
+    } catch (err) {
+      console.warn("Unable to enable audio:", err);
+      setAudioBlocked(true);
+      toast.error(
+        "Couldn't enable sound. Please interact with the page (click) and try again."
+      );
+    }
+  };
+
+  const disableAudio = () => {
+    setAudioEnabled(false);
+    try {
+      localStorage.removeItem(`${storageKey}_audio_enabled`);
+    } catch {}
+    toast("Sound notifications disabled");
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -137,6 +221,66 @@ export default function NotificationModal({
     };
   }, [open, onClose]);
 
+  // helper to attempt to play sound and vibrate
+  const tryRing = async () => {
+    try {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate([200, 100, 200]);
+        } catch {}
+      }
+
+      if (audioEnabled && audioRef.current) {
+        try {
+          // reset to start and play
+          audioRef.current.currentTime = 0;
+          await audioRef.current.play();
+          // success -> clear audioBlocked if previously set
+          setAudioBlocked(false);
+        } catch (err) {
+          console.warn("Play failed:", err);
+          setAudioBlocked(true);
+          toast.error(
+            "Sound blocked by browser. Click 'Enable sound' in the notifications panel."
+          );
+        }
+      } else {
+        // audio not enabled -> mark blocked so UI can prompt user
+        setAudioBlocked(true);
+        // also try browser notification so user notices
+        // (do not open many notifications if permission not granted)
+        if (Notification.permission === "granted") {
+          showBrowserNotification(
+            "You have unread notifications",
+            `You have ${notifications.length} unread notifications`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("tryRing error:", err);
+    }
+  };
+
+  // start repeating alarm every RING_INTERVAL_MS if not already running
+  const startRepeatingRings = () => {
+    if (ringIntervalRef.current) return;
+    ringIntervalRef.current = setInterval(() => {
+      // only ring while there are notifications
+      if (notifications.length > 0) {
+        tryRing();
+      } else {
+        stopRepeatingRings();
+      }
+    }, RING_INTERVAL_MS);
+  };
+
+  const stopRepeatingRings = () => {
+    if (ringIntervalRef.current) {
+      clearInterval(ringIntervalRef.current);
+      ringIntervalRef.current = null;
+    }
+  };
+
   // socket connection (mount only)
   useEffect(() => {
     const socket = io(socketUrl, { autoConnect: true });
@@ -152,17 +296,7 @@ export default function NotificationModal({
 
     // --- events we listen for ---
     socket.on("newOrder", (data) => {
-      try {
-        const audio = new Audio("/order_placed_notification.mp3");
-        audio.play().catch((err) => {
-          console.warn(
-            "Audio play failed (possibly due to user gesture restrictions):",
-            err
-          );
-        });
-      } catch (err) {
-        console.error("Error playing notification sound:", err);
-      }
+      // push into list + toast
       pushNotification({
         type: "order",
         title: "New order",
@@ -171,6 +305,17 @@ export default function NotificationModal({
         }`,
         meta: data,
       });
+
+      // immediate ring attempt
+      tryRing();
+
+      // start repeating alarm schedule (so it rings every 1 minute until cleared)
+      // give it a small delay so immediate ring happens first
+      setTimeout(() => {
+        if (notifications.length >= 0) startRepeatingRings();
+      }, 1000);
+
+      // show browser notification (after small delay)
       const orderId = data.orderId ?? data._id;
       setTimeout(() => {
         showBrowserNotification(
@@ -189,6 +334,8 @@ export default function NotificationModal({
           message: `${payload.orders.length} unclaimed orders`,
           meta: payload,
         });
+        tryRing();
+        startRepeatingRings();
       }
     });
 
@@ -199,6 +346,8 @@ export default function NotificationModal({
         message: `You were assigned order ${order.orderId ?? order._id}`,
         meta: order,
       });
+      tryRing();
+      startRepeatingRings();
     });
 
     socket.on("orderClaimed", (data) => {
@@ -208,6 +357,8 @@ export default function NotificationModal({
         message: `Order ${data.orderId} was claimed`,
         meta: data,
       });
+      tryRing();
+      startRepeatingRings();
     });
 
     socket.on("orderReleased", () => {
@@ -216,6 +367,8 @@ export default function NotificationModal({
         title: "Order released",
         message: "Some previously-claimed orders are available again",
       });
+      tryRing();
+      startRepeatingRings();
     });
 
     socket.on("orderReached", (data) => {
@@ -225,6 +378,8 @@ export default function NotificationModal({
         message: `Order ${data.orderId} reached pickup point`,
         meta: data,
       });
+      tryRing();
+      startRepeatingRings();
     });
 
     socket.on("orderPickedUp", (data) => {
@@ -234,6 +389,8 @@ export default function NotificationModal({
         message: `Order ${data.orderId} picked up`,
         meta: data,
       });
+      tryRing();
+      startRepeatingRings();
     });
 
     socket.on("orderDelivered", (data) => {
@@ -243,6 +400,8 @@ export default function NotificationModal({
         message: `Order ${data.orderId} delivered`,
         meta: data,
       });
+      tryRing();
+      startRepeatingRings();
     });
 
     // cleanup on unmount
@@ -251,9 +410,26 @@ export default function NotificationModal({
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      stopRepeatingRings();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socketUrl, role, userId, showToast]);
+  }, [socketUrl, role, userId, showToast, audioEnabled]);
+
+  // watch notifications array and start/stop repeating alarm appropriately
+  useEffect(() => {
+    if (notifications.length > 0) {
+      // ensure repeating alarm is running
+      startRepeatingRings();
+    } else {
+      // nothing to alarm for
+      stopRepeatingRings();
+      setAudioBlocked(false);
+    }
+
+    // persist to localStorage so other tabs can see it
+    persistNotifications(notifications);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications]);
 
   // keep localStorage in sync if notifications change elsewhere (other tabs)
   useEffect(() => {
@@ -282,6 +458,8 @@ export default function NotificationModal({
     } catch (err) {
       console.error("Failed to remove notifications from localStorage", err);
     }
+    // stop repeating alarm when user clears
+    stopRepeatingRings();
   };
 
   // navigation: use onNavigate if provided, else use window.location
@@ -333,7 +511,7 @@ export default function NotificationModal({
     return <BellRing className="w-4 h-4 text-blue-500" />;
   };
 
- if (!open) return null;
+  if (!open) return null;
 
   return (
     <>
@@ -344,7 +522,27 @@ export default function NotificationModal({
         >
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Notifications</h2>
+
             <div className="flex items-center gap-2">
+              {/* Sound controls */}
+              {audioEnabled ? (
+                <button
+                  onClick={disableAudio}
+                  className="text-xs px-2 py-1 bg-green-100 rounded"
+                  title="Disable sound notifications"
+                >
+                  Sound: On
+                </button>
+              ) : (
+                <button
+                  onClick={enableAudio}
+                  className="text-xs px-2 py-1 bg-blue-100 rounded"
+                  title="Enable sound notifications (required by browser)"
+                >
+                  Enable sound
+                </button>
+              )}
+
               <button
                 onClick={clearNotifications}
                 className="text-xs px-2 py-1 bg-gray-100 rounded"
@@ -356,6 +554,13 @@ export default function NotificationModal({
               </button>
             </div>
           </div>
+
+          {audioBlocked && (
+            <div className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded mb-2">
+              Sound is blocked by the browser. Click <b>Enable sound</b> to
+              allow audio alerts (this requires a click gesture).
+            </div>
+          )}
 
           <ul className="space-y-2 text-sm max-h-80 overflow-y-auto">
             {notifications.length === 0 && (
