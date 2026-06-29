@@ -325,6 +325,24 @@ export default function OrderDetailsPage() {
                 {order.buyer?.email || "N/A"}
               </p>
               <p>
+                <span className="font-medium">Phone:</span>{" "}
+                {order.buyerDetails?.phone || "N/A"}
+              </p>
+              <p>
+                <span className="font-medium">Address:</span>{" "}
+                {order.shippingAddress?.addressLine1 || "N/A"}
+                {order.shippingAddress?.city
+                  ? `, ${order.shippingAddress.city}`
+                  : ""}
+                  {order.shippingAddress?.state
+                  ? `, ${order.shippingAddress.state}`
+                  : ""
+                   }
+                  {order.shippingAddress?.pincode
+                  ? ` - ${order.shippingAddress.pincode}`
+                  : ""}
+              </p>
+              <p>
                 <span className="font-medium">Location:</span>{" "}
                 {order.location || "N/A"}
               </p>
@@ -389,6 +407,9 @@ export default function OrderDetailsPage() {
                       </div>
                     </div>
                     <div className="text-right">
+                      <p className="font-medium text-gray-700">
+                        Cutting Type: {p.cuttingType || "N/A"}
+                      </p>
                       <p className="font-medium text-gray-700">
                         Price: ₹{p.price}
                       </p>
