@@ -17,7 +17,7 @@ const EditProduct = () => {
 
   const [productPhotos, setProductPhotos] = useState([]);
   const [productInfo, setProductInfo] = useState({ productId: "", productName: "", tamilName: "", category: "" });
-  const [productDetails, setProductDetails] = useState({ condition: "", description: "", tamilDescription: "", videoUrl: "", cutType: "", shelfLife: "", storageInstructions: "", certifications: [] });
+  const [productDetails, setProductDetails] = useState({ condition: "", description: "", tamilDescription: "", videoUrl: "", cutType: "", shelfLife: "", storageInstructions: "", certifications: [], preparationGuide: "", tamilPreparationGuide: "" });
   const [variants, setVariants] = useState([]);
   const [weightOptions, setWeightOptions] = useState([]);
   const [productManagementData, setProductManagementData] = useState({ isActive: false, stock: "", sku: "", price: "" });
@@ -72,6 +72,8 @@ const EditProduct = () => {
           shelfLife: data.shelfLife || "",
           storageInstructions: data.storageInstructions || "",
           certifications: data.certifications || [],
+          preparationGuide: data.preparationGuide || "",
+          tamilPreparationGuide: data.tamilPreparationGuide || "",
         });
 
         // group flattened variant array (same as your previous logic)
@@ -149,6 +151,8 @@ const EditProduct = () => {
         shelfLife: productDetails.shelfLife,
         storageInstructions: productDetails.storageInstructions,
         certifications: productDetails.certifications,
+        preparationGuide: productDetails.preparationGuide,
+        tamilPreparationGuide: productDetails.tamilPreparationGuide,
         // use first weight option unit if product-level unit not set
         unit: weightOptions[0]?.unit || weightShippingData.unit || "kg",
         weightOptions: weightOptions.map((w) => ({
@@ -220,6 +224,10 @@ const EditProduct = () => {
         certifications={productDetails.certifications}
         addCertification={(cert) => setProductDetails((prev) => ({ ...prev, certifications: [...prev.certifications, cert] }))}
         removeCertification={(cert) => setProductDetails((prev) => ({ ...prev, certifications: prev.certifications.filter((c) => c !== cert) }))}
+        preparationGuide={productDetails.preparationGuide}
+        setPreparationGuide={(val) => setProductDetails((prev) => ({ ...prev, preparationGuide: val }))}
+        tamilPreparationGuide={productDetails.tamilPreparationGuide}
+        setTamilPreparationGuide={(val) => setProductDetails((prev) => ({ ...prev, tamilPreparationGuide: val }))}
       />
 
       {/* Management */}

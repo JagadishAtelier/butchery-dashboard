@@ -22,6 +22,10 @@ const ProductDetailStep = ({
   setShelfLife,
   storageInstructions,
   setStorageInstructions,
+  preparationGuide,
+  setPreparationGuide,
+  tamilPreparationGuide,
+  setTamilPreparationGuide,
   videoUrl,
   setVideoUrl,
   onAddVideoClick,
@@ -173,6 +177,38 @@ const ProductDetailStep = ({
                 onChange={(e) => setStorageInstructions(e.target.value)}
                 rows={3}
                 placeholder="e.g., Keep refrigerated at 0-4°C"
+                className="w-full rounded-md border px-3 py-2 bg-white text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
+          </div>
+
+          {/* Preparation Guide */}
+          <div className="flex flex-col xl:flex-row items-start">
+            <div className="w-full xl:w-64 xl:mr-10">
+              <div className="font-medium">Preparation Guide</div>
+            </div>
+            <div className="mt-3 xl:mt-0 flex-1 w-full">
+              <textarea
+                value={preparationGuide}
+                onChange={(e) => setPreparationGuide(e.target.value)}
+                rows={4}
+                placeholder="How to prepare the product..."
+                className="w-full rounded-md border px-3 py-2 bg-white text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
+          </div>
+
+          {/* Tamil Preparation Guide */}
+          <div className="flex flex-col xl:flex-row items-start">
+            <div className="w-full xl:w-64 xl:mr-10">
+              <div className="font-medium">Tamil Preparation Guide</div>
+            </div>
+            <div className="mt-3 xl:mt-0 flex-1 w-full">
+              <textarea
+                value={tamilPreparationGuide}
+                onChange={(e) => setTamilPreparationGuide(e.target.value)}
+                rows={4}
+                placeholder="தயாரிப்பு வழிமுறை..."
                 className="w-full rounded-md border px-3 py-2 bg-white text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </div>

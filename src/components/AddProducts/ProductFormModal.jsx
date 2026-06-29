@@ -44,6 +44,8 @@ const ProductFormModal = () => {
     cutType: [],
     shelfLife: "",
     storageInstructions: "",
+    preparationGuide: "",
+    tamilPreparationGuide: "",
   });
 
   // keep frontend _id for UI only; we will omit invalid _id on submit
@@ -160,6 +162,8 @@ const ProductFormModal = () => {
         cutType: Array.isArray(productDetails.cutType) ? productDetails.cutType : [],
         shelfLife: productDetails.shelfLife,
         storageInstructions: productDetails.storageInstructions,
+        preparationGuide: productDetails.preparationGuide,
+        tamilPreparationGuide: productDetails.tamilPreparationGuide,
         unit: weightShippingData.unit,
         weightOptions: payloadWeightOptions,
         SKU: productManagementData.sku,
@@ -217,6 +221,10 @@ const ProductFormModal = () => {
           setShelfLife={(val) => setProductDetails((prev) => ({ ...prev, shelfLife: val }))}
           storageInstructions={productDetails.storageInstructions}
           setStorageInstructions={(val) => setProductDetails((prev) => ({ ...prev, storageInstructions: val }))}
+          preparationGuide={productDetails.preparationGuide}
+          setPreparationGuide={(val) => setProductDetails((prev) => ({ ...prev, preparationGuide: val }))}
+          tamilPreparationGuide={productDetails.tamilPreparationGuide}
+          setTamilPreparationGuide={(val) => setProductDetails((prev) => ({ ...prev, tamilPreparationGuide: val }))}
         />
       )}
 
